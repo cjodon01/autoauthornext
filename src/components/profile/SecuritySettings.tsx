@@ -406,7 +406,7 @@ const SecuritySettings: React.FC = () => {
                   <p className="text-amber-400 font-medium mb-1">Enhance Your Security</p>
                   <p className="text-white/80 text-sm">
                     Enable two-factor authentication to significantly improve your account security. 
-                    You'll need an authenticator app like Google Authenticator or Authy.
+                    You&apos;ll need an authenticator app like Google Authenticator or Authy.
                   </p>
                 </div>
               </div>

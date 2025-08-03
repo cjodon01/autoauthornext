@@ -261,7 +261,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                 <div>
                   <h4 className="font-medium text-blue-400">Browser Permission Required</h4>
                   <p className="text-white/70 text-sm">
-                    Click "Allow" when prompted to enable push notifications
+                    Click &quot;Allow&quot; when prompted to enable push notifications
                   </p>
                 </div>
               </div>

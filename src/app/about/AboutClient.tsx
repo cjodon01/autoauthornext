@@ -73,7 +73,7 @@ export default function AboutClient() {
               About <span className="text-gradient">AutoAuthor</span>
             </h1>
             <p className="text-xl text-white/70 max-w-3xl mx-auto leading-relaxed">
-              We're on a mission to democratize content creation by making AI-powered automation accessible to creators, marketers, and businesses of all sizes.
+              We&apos;re on a mission to democratize content creation by making AI-powered automation accessible to creators, marketers, and businesses of all sizes.
             </p>
           </div>
 
@@ -85,10 +85,10 @@ export default function AboutClient() {
             </div>
             <div className="text-white/80 space-y-4">
               <p>
-                In today's fast-paced digital world, consistent content creation has become both essential and overwhelming. We founded AutoAuthor to solve this challenge by combining the power of artificial intelligence with intuitive design.
+                In today&apos;s fast-paced digital world, consistent content creation has become both essential and overwhelming. We founded AutoAuthor to solve this challenge by combining the power of artificial intelligence with intuitive design.
               </p>
               <p>
-                Our platform empowers creators to maintain their authentic voice while scaling their content production across multiple platforms. Whether you're a solo entrepreneur, a growing startup, or an established business, AutoAuthor helps you stay connected with your audience without the constant pressure of manual content creation.
+                Our platform empowers creators to maintain their authentic voice while scaling their content production across multiple platforms. Whether you&apos;re a solo entrepreneur, a growing startup, or an established business, AutoAuthor helps you stay connected with your audience without the constant pressure of manual content creation.
               </p>
               <p>
                 We believe that great content should be accessible to everyone, not just those with large marketing budgets or dedicated content teams.
@@ -148,7 +148,7 @@ export default function AboutClient() {
                 AutoAuthor was born from the frustration of spending countless hours creating content for multiple social media platforms while trying to build a business. Our founders experienced firsthand the challenge of maintaining consistent, quality content across different channels while focusing on core business activities.
               </p>
               <p>
-                After experimenting with various tools and workflows, we realized that existing solutions were either too complex, too expensive, or didn't maintain the authentic voice that makes content engaging. We set out to build something different - a platform that combines powerful AI capabilities with simplicity and affordability.
+                After experimenting with various tools and workflows, we realized that existing solutions were either too complex, too expensive, or didn&apos;t maintain the authentic voice that makes content engaging. We set out to build something different - a platform that combines powerful AI capabilities with simplicity and affordability.
               </p>
               <p>
                 Today, AutoAuthor serves creators and businesses worldwide, helping them automate their content creation while maintaining their unique brand voice and engaging their audiences effectively.
@@ -188,7 +188,7 @@ export default function AboutClient() {
           <div className="text-center bg-dark-card border border-dark-border rounded-xl p-8">
             <h2 className="text-2xl font-semibold mb-4">Get in Touch</h2>
             <p className="text-white/70 mb-6">
-              Have questions about AutoAuthor or want to share your feedback? We'd love to hear from you.
+              Have questions about AutoAuthor or want to share your feedback? We&apos;d love to hear from you.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a

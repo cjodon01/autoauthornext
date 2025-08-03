@@ -60,8 +60,8 @@ export default function TermsClient() {
                 <h2 className="text-2xl font-semibold">Acceptance of Terms</h2>
               </div>
               <div className="text-white/80 space-y-3">
-                <p>By accessing and using AutoAuthor ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.</p>
-                <p>These Terms of Service ("Terms") govern your use of our website located at autoauthor.cc and our content automation services.</p>
+                <p>By accessing and using AutoAuthor (&quot;the Service&quot;), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.</p>
+                <p>These Terms of Service (&quot;Terms&quot;) govern your use of our website located at autoauthor.cc and our content automation services.</p>
               </div>
             </section>
 
@@ -174,7 +174,7 @@ export default function TermsClient() {
               </div>
               <div className="text-white/80 space-y-3">
                 <p>To the maximum extent permitted by law:</p>
-                <p>• AutoAuthor is provided "as is" without warranties of any kind</p>
+                <p>• AutoAuthor is provided &quot;as is&quot; without warranties of any kind</p>
                 <p>• We do not guarantee uninterrupted or error-free service</p>
                 <p>• Our liability is limited to the amount you paid for the service in the past 12 months</p>
                 <p>• We are not liable for indirect, incidental, or consequential damages</p>

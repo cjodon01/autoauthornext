@@ -358,7 +358,7 @@ const BillingSettings: React.FC = () => {
             <div className="p-3 bg-red-400/10 border border-red-400/20 rounded-lg">
               <div className="flex items-center gap-2 text-red-400 text-sm">
                 <AlertTriangle className="h-4 w-4" />
-                You're running low on tokens. Consider upgrading your plan to avoid service interruption.
+                You&apos;re running low on tokens. Consider upgrading your plan to avoid service interruption.
               </div>
             </div>
           )}

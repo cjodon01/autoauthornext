@@ -9,7 +9,7 @@ import PricingModal from '../modals/PricingModal';
 
 interface HeaderProps {
   openModal: () => void;
-  session?: any;
+  session?: { user: { email?: string } } | null;
 }
 
 const Header: React.FC<HeaderProps> = ({ openModal, session }) => {
