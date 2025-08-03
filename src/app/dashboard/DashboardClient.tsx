@@ -175,8 +175,8 @@ const DashboardClient: React.FC = () => {
                 <span className="mr-2">①</span>Connect a platform to publish on.
               </li>
               <li>
-                <span className="mr-2">②</span>Create a brand to shape your content's voice.
-              </li>
+  <span className="mr-2">②</span>Create a brand to shape your content&rsquo;s voice.
+</li>
               <li>
                 <span className="mr-2">③</span>Launch a campaign to generate and schedule powerful posts.
               </li>
