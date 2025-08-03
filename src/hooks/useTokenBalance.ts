@@ -21,7 +21,7 @@ export const useTokenBalance = () => {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('tokens')
+          .select('token_balance')
           .eq('id', session.user.id)
           .single();
 
@@ -36,7 +36,7 @@ export const useTokenBalance = () => {
         }
 
         if (profile) {
-          setTokenBalance(profile.tokens || 1000);
+          setTokenBalance(profile.token_balance || 1000);
         }
       } catch (error) {
         console.error('Error fetching token balance:', error);

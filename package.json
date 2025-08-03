@@ -8,10 +8,13 @@
     "build": "next build",
     "build:analyze": "ANALYZE=true next build",
     "build:optimized": "node scripts/optimize-build.js",
+    "build:fast": "NEXT_TELEMETRY_DISABLED=1 next build --no-lint",
     "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "build:production": "npm run type-check && npm run lint && npm run build",
+    "lint": "next lint --max-warnings 50",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit --skipLibCheck",
+    "type-check:fast": "tsc --noEmit --skipLibCheck --incremental",
+    "build:production": "npm run type-check:fast && npm run lint && npm run build",
     "test:lighthouse": "lighthouse http://localhost:3000 --output=json --output-path=./lighthouse-report.json"
   },
   "dependencies": {

@@ -1,18 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth/provider';
 import { createClient } from '@/lib/supabase/client';
 import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import PerformanceMetrics from '@/components/analytics/PerformanceMetrics';
-import EngagementCharts from '@/components/analytics/EngagementCharts';
-import PlatformBreakdown from '@/components/analytics/PlatformBreakdown';
-import RecentPosts from '@/components/analytics/RecentPosts';
-import ROICalculator from '@/components/analytics/ROICalculator';
-import PostStatusMonitor from '@/components/analytics/PostStatusMonitor';
-import TokenUsageAnalytics from '@/components/analytics/TokenUsageAnalytics';
+import ComponentLoader from '@/components/ui/ComponentLoader';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
+
+// Dynamic imports for heavy analytics components
+const PerformanceMetrics = lazy(() => import('@/components/analytics/PerformanceMetrics'));
+const EngagementCharts = lazy(() => import('@/components/analytics/EngagementCharts'));
+const PlatformBreakdown = lazy(() => import('@/components/analytics/PlatformBreakdown'));
+const RecentPosts = lazy(() => import('@/components/analytics/RecentPosts'));
+const ROICalculator = lazy(() => import('@/components/analytics/ROICalculator'));
+const PostStatusMonitor = lazy(() => import('@/components/analytics/PostStatusMonitor'));
+const TokenUsageAnalytics = lazy(() => import('@/components/analytics/TokenUsageAnalytics'));
 import { 
   BarChart3, 
   TrendingUp, 
@@ -262,11 +265,13 @@ const AnalyticsClient: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <PerformanceMetrics 
-              data={analyticsData?.performanceData}
-              loading={analyticsLoading}
-              dateRange={dateRange}
-            />
+            <Suspense fallback={<ComponentLoader height="h-96" text="Loading performance metrics..." />}>
+              <PerformanceMetrics 
+                data={analyticsData?.performanceData}
+                loading={analyticsLoading}
+                dateRange={dateRange}
+              />
+            </Suspense>
           </motion.div>
 
           {/* Platform Breakdown */}
@@ -275,10 +280,12 @@ const AnalyticsClient: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <PlatformBreakdown 
-              data={analyticsData?.platformData}
-              loading={analyticsLoading}
-            />
+            <Suspense fallback={<ComponentLoader height="h-96" text="Loading platform breakdown..." />}>
+              <PlatformBreakdown 
+                data={analyticsData?.platformData}
+                loading={analyticsLoading}
+              />
+            </Suspense>
           </motion.div>
         </div>
 
@@ -289,11 +296,13 @@ const AnalyticsClient: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
           >
-            <EngagementCharts 
-              data={analyticsData?.engagementData}
-              loading={analyticsLoading}
-              dateRange={dateRange}
-            />
+            <Suspense fallback={<ComponentLoader height="h-80" text="Loading engagement charts..." />}>
+              <EngagementCharts 
+                data={analyticsData?.engagementData}
+                loading={analyticsLoading}
+                dateRange={dateRange}
+              />
+            </Suspense>
           </motion.div>
 
           <motion.div
@@ -301,10 +310,12 @@ const AnalyticsClient: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
           >
-            <ROICalculator 
-              data={analyticsData?.roiData}
-              loading={analyticsLoading}
-            />
+            <Suspense fallback={<ComponentLoader height="h-80" text="Loading ROI calculator..." />}>
+              <ROICalculator 
+                data={analyticsData?.roiData}
+                loading={analyticsLoading}
+              />
+            </Suspense>
           </motion.div>
         </div>
 
@@ -315,11 +326,13 @@ const AnalyticsClient: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
           >
-            <PostStatusMonitor 
-              className="h-full"
-              autoRefresh={true}
-              refreshInterval={10000}
-            />
+            <Suspense fallback={<ComponentLoader height="h-96" text="Loading post status monitor..." />}>
+              <PostStatusMonitor 
+                className="h-full"
+                autoRefresh={true}
+                refreshInterval={10000}
+              />
+            </Suspense>
           </motion.div>
 
           <motion.div
@@ -327,11 +340,13 @@ const AnalyticsClient: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.0 }}
           >
-            <RecentPosts 
-              posts={analyticsData?.recentPosts}
-              loading={analyticsLoading}
-              onRefresh={refetchAnalytics}
-            />
+            <Suspense fallback={<ComponentLoader height="h-80" text="Loading recent posts..." />}>
+              <RecentPosts 
+                posts={analyticsData?.recentPosts}
+                loading={analyticsLoading}
+                onRefresh={refetchAnalytics}
+              />
+            </Suspense>
           </motion.div>
         </div>
 
@@ -341,9 +356,11 @@ const AnalyticsClient: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.1 }}
         >
-          <TokenUsageAnalytics 
-            dateRange={dateRange}
-          />
+          <Suspense fallback={<ComponentLoader height="h-96" text="Loading token usage analytics..." />}>
+            <TokenUsageAnalytics 
+              dateRange={dateRange}
+            />
+          </Suspense>
         </motion.div>
       </main>
     </div>
