@@ -24,6 +24,32 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface DatabasePost {
+  id: string;
+  post_content: string;
+  post_date: string | null;
+  approved: boolean;
+  platform?: string;
+  target_platforms?: string[];
+  page_id?: string;
+  social_connection_id?: string;
+  target_page_ids?: string[];
+  target_connection_ids?: string[];
+  campaign_id?: string;
+  created_at: string;
+  updated_at?: string;
+  // Enriched data from joins
+  campaigns?: {
+    id: string;
+    campaign_name: string;
+    user_id: string;
+  } | null;
+  relatedPages?: any[];
+  relatedConnections?: any[];
+  platforms?: string[];
+  isCompleted?: boolean;
+}
+
 interface ScheduledPost {
   id: string;
   content: string;
@@ -53,7 +79,7 @@ const PendingPostsClient: React.FC = () => {
   const supabase = createClient();
   
   // State
-  const [posts, setPosts] = useState<ScheduledPost[]>([]);
+  const [posts, setPosts] = useState<DatabasePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
@@ -65,47 +91,41 @@ const PendingPostsClient: React.FC = () => {
     search: ''
   });
 
-  // Generate mock data for demonstration
-  const generateMockPosts = (): ScheduledPost[] => {
-    const platforms = ['twitter', 'facebook', 'linkedin', 'instagram'];
-    const statuses: ScheduledPost['status'][] = ['scheduled', 'processing', 'published', 'failed', 'paused'];
-    const brands = [
-      { id: '1', name: 'TechCorp' },
-      { id: '2', name: 'StartupX' },
-      { id: '3', name: 'BrandY' }
-    ];
+  // Campaigns for filter dropdown
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  
+  // Convert database post to UI post format
+  const convertToScheduledPost = (dbPost: DatabasePost): ScheduledPost => ({
+    id: dbPost.id,
+    content: dbPost.post_content,
+    platform: dbPost.platforms?.[0] || 'unknown',
+    scheduledAt: dbPost.post_date || '',
+    status: dbPost.isCompleted ? 'published' : (dbPost.approved ? 'scheduled' : 'failed'),
+    brandId: dbPost.campaign_id || '',
+    brandName: dbPost.campaigns?.campaign_name || 'No Campaign',
+    campaignId: dbPost.campaign_id,
+    campaignName: dbPost.campaigns?.campaign_name,
+    retryCount: 0,
+    createdAt: dbPost.created_at,
+    updatedAt: dbPost.updated_at || dbPost.created_at
+  });
+  
+  // Fetch campaigns for filter dropdown
+  const fetchCampaigns = async () => {
+    if (!user) return;
     
-    const mockPosts: ScheduledPost[] = [];
-    
-    for (let i = 0; i < 25; i++) {
-      const brand = brands[Math.floor(Math.random() * brands.length)];
-      const platform = platforms[Math.floor(Math.random() * platforms.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      
-      // Generate various scheduled times (past, present, future)
-      const baseTime = new Date();
-      const randomHours = Math.floor(Math.random() * 168) - 84; // ±3.5 days
-      const scheduledAt = new Date(baseTime.getTime() + randomHours * 60 * 60 * 1000);
-      
-      mockPosts.push({
-        id: `post-${i + 1}`,
-        content: `Sample post content ${i + 1}. This is a ${platform} post about ${brand.name}'s latest updates and announcements. #${brand.name.toLowerCase()} #socialmedia`,
-        platform,
-        scheduledAt: scheduledAt.toISOString(),
-        status,
-        brandId: brand.id,
-        brandName: brand.name,
-        mediaUrls: Math.random() > 0.7 ? [`https://via.placeholder.com/400x300?text=Media+${i + 1}`] : undefined,
-        campaignId: Math.random() > 0.5 ? `campaign-${Math.floor(Math.random() * 5) + 1}` : undefined,
-        campaignName: Math.random() > 0.5 ? `Campaign ${Math.floor(Math.random() * 5) + 1}` : undefined,
-        error: status === 'failed' ? 'Authentication token expired' : undefined,
-        retryCount: status === 'failed' ? Math.floor(Math.random() * 3) : 0,
-        createdAt: new Date(baseTime.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('id, campaign_name')
+        .eq('user_id', user.id)
+        .order('campaign_name', { ascending: true });
+        
+      if (error) throw error;
+      setCampaigns(data || []);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
     }
-    
-    return mockPosts.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   };
 
   const fetchPosts = async () => {
@@ -113,11 +133,130 @@ const PendingPostsClient: React.FC = () => {
     
     setLoading(true);
     try {
-      // In production, this would fetch from Supabase
-      // For now, simulate with mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockPosts = generateMockPosts();
-      setPosts(mockPosts);
+      // Build query with joins similar to original app
+      let query = supabase
+        .from('posts_log')
+        .select(`
+          *,
+          campaigns (
+            id,
+            campaign_name,
+            user_id
+          )
+        `);
+      
+      // Apply status filter
+      if (filters.status === 'scheduled') {
+        const now = new Date().toISOString();
+        query = query.eq('approved', true).gt('post_date', now);
+      } else if (filters.status === 'published') {
+        const now = new Date().toISOString();
+        query = query.eq('approved', true).lte('post_date', now);
+      } else if (filters.status === 'failed') {
+        query = query.eq('approved', false);
+      }
+      
+      // Apply platform filter
+      if (filters.platform !== 'all') {
+        query = query.or(`platform.eq.${filters.platform},target_platforms.cs.{${filters.platform}}`);
+      }
+      
+      // Apply search filter
+      if (filters.search) {
+        query = query.ilike('post_content', `%${filters.search}%`);
+      }
+      
+      // Execute query
+      const { data: postsData, error } = await query.order('post_date', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Filter posts to only show those belonging to the current user
+      const userPosts = postsData?.filter(post => post.campaigns?.user_id === user.id) || [];
+      
+      // Collect page and connection IDs for enrichment
+      const pageIds = userPosts
+        .flatMap(post => post.page_id ? [post.page_id] : [])
+        .concat(userPosts.flatMap(post => post.target_page_ids || []));
+        
+      const connectionIds = userPosts
+        .flatMap(post => post.social_connection_id ? [post.social_connection_id] : [])
+        .concat(userPosts.flatMap(post => post.target_connection_ids || []));
+      
+      // Fetch related social pages
+      let pagesData: any[] = [];
+      if (pageIds.length > 0) {
+        const { data: pages, error: pagesError } = await supabase
+          .from('social_pages')
+          .select('*')
+          .in('id', [...new Set(pageIds)]);
+          
+        if (!pagesError) {
+          pagesData = pages || [];
+        }
+      }
+      
+      // Fetch related social connections
+      let connectionsData: any[] = [];
+      if (connectionIds.length > 0) {
+        const { data: connections, error: connectionsError } = await supabase
+          .from('social_connections')
+          .select('*')
+          .in('id', [...new Set(connectionIds)]);
+          
+        if (!connectionsError) {
+          connectionsData = connections || [];
+        }
+      }
+      
+      // Enrich posts with related data
+      const enrichedPosts = userPosts.map(post => {
+        // Find related pages
+        const relatedPages = pagesData.filter(page => 
+          page.id === post.page_id || (post.target_page_ids && post.target_page_ids.includes(page.id))
+        );
+        
+        // Find related connections
+        const relatedConnections = connectionsData.filter(conn => 
+          conn.id === post.social_connection_id || (post.target_connection_ids && post.target_connection_ids.includes(conn.id))
+        );
+        
+        // Determine platforms
+        const platforms = new Set<string>();
+        
+        if (post.platform) {
+          platforms.add(post.platform.toLowerCase());
+        }
+        
+        if (post.target_platforms && Array.isArray(post.target_platforms)) {
+          post.target_platforms.forEach((p: string) => platforms.add(p.toLowerCase()));
+        }
+        
+        relatedPages.forEach(page => {
+          if (page.provider) {
+            platforms.add(page.provider.toLowerCase());
+          }
+        });
+        
+        relatedConnections.forEach(conn => {
+          if (conn.provider) {
+            platforms.add(conn.provider.toLowerCase());
+          }
+        });
+        
+        // Determine if post is completed (approved and past date)
+        const isCompleted = post.approved && post.post_date && new Date(post.post_date) <= new Date();
+        
+        return {
+          ...post,
+          relatedPages,
+          relatedConnections,
+          platforms: Array.from(platforms),
+          isCompleted
+        };
+      });
+      
+      setPosts(enrichedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
       toast.error('Failed to load scheduled posts');
@@ -127,8 +266,18 @@ const PendingPostsClient: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPosts();
+    if (user) {
+      fetchPosts();
+      fetchCampaigns();
+    }
   }, [user]);
+  
+  // Refetch when filters change
+  useEffect(() => {
+    if (user) {
+      fetchPosts();
+    }
+  }, [filters, user]);
 
   const handleLogout = async () => {
     await signOut();
@@ -153,35 +302,41 @@ const PendingPostsClient: React.FC = () => {
     }
 
     try {
-      // In production, this would make API calls to perform bulk actions
       switch (action) {
         case 'delete':
+          const { error: deleteError } = await supabase
+            .from('posts_log')
+            .delete()
+            .in('id', selectedPosts);
+            
+          if (deleteError) throw deleteError;
+          
           setPosts(prev => prev.filter(post => !selectedPosts.includes(post.id)));
           toast.success(`Deleted ${selectedPosts.length} posts`);
           break;
-        case 'pause':
-          setPosts(prev => prev.map(post => 
-            selectedPosts.includes(post.id) 
-              ? { ...post, status: 'paused' as const } 
-              : post
-          ));
-          toast.success(`Paused ${selectedPosts.length} posts`);
+          
+        case 'approve':
+          const { error: approveError } = await supabase
+            .from('posts_log')
+            .update({ approved: true })
+            .in('id', selectedPosts);
+            
+          if (approveError) throw approveError;
+          
+          toast.success(`Approved ${selectedPosts.length} posts`);
+          fetchPosts(); // Refresh to show updated status
           break;
-        case 'resume':
-          setPosts(prev => prev.map(post => 
-            selectedPosts.includes(post.id) 
-              ? { ...post, status: 'scheduled' as const } 
-              : post
-          ));
-          toast.success(`Resumed ${selectedPosts.length} posts`);
-          break;
-        case 'retry':
-          setPosts(prev => prev.map(post => 
-            selectedPosts.includes(post.id) && post.status === 'failed'
-              ? { ...post, status: 'scheduled' as const, error: undefined, retryCount: post.retryCount + 1 } 
-              : post
-          ));
-          toast.success(`Retrying ${selectedPosts.length} posts`);
+          
+        case 'unapprove':
+          const { error: unapproveError } = await supabase
+            .from('posts_log')
+            .update({ approved: false })
+            .in('id', selectedPosts);
+            
+          if (unapproveError) throw unapproveError;
+          
+          toast.success(`Unapproved ${selectedPosts.length} posts`);
+          fetchPosts(); // Refresh to show updated status
           break;
       }
       setSelectedPosts([]);
@@ -195,16 +350,38 @@ const PendingPostsClient: React.FC = () => {
     setEditingPost(post);
   };
 
-  const handlePostUpdate = (updatedPost: ScheduledPost) => {
-    setPosts(prev => prev.map(post => 
-      post.id === updatedPost.id ? updatedPost : post
-    ));
-    setEditingPost(null);
-    toast.success('Post updated successfully');
+  const handlePostUpdate = async (updatedPost: ScheduledPost) => {
+    try {
+      const { error } = await supabase
+        .from('posts_log')
+        .update({
+          post_content: updatedPost.content,
+          post_date: updatedPost.scheduledAt,
+          approved: updatedPost.status === 'scheduled' || updatedPost.status === 'published'
+        })
+        .eq('id', updatedPost.id);
+        
+      if (error) throw error;
+      
+      // Refresh posts to show updated data
+      await fetchPosts();
+      setEditingPost(null);
+      toast.success('Post updated successfully');
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Failed to update post');
+    }
   };
 
   const handlePostDelete = async (postId: string) => {
     try {
+      const { error } = await supabase
+        .from('posts_log')
+        .delete()
+        .eq('id', postId);
+        
+      if (error) throw error;
+      
       setPosts(prev => prev.filter(post => post.id !== postId));
       toast.success('Post deleted successfully');
     } catch (error) {
@@ -215,14 +392,31 @@ const PendingPostsClient: React.FC = () => {
 
   // Filter posts based on current filters
   const filteredPosts = posts.filter(post => {
-    if (filters.status !== 'all' && post.status !== filters.status) return false;
-    if (filters.platform !== 'all' && post.platform !== filters.platform) return false;
-    if (filters.search && !post.content.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !post.brandName.toLowerCase().includes(filters.search.toLowerCase())) return false;
+    // Status filter
+    if (filters.status !== 'all') {
+      if (filters.status === 'scheduled' && (!post.approved || !post.post_date || post.isCompleted)) return false;
+      if (filters.status === 'published' && !post.isCompleted) return false;
+      if (filters.status === 'failed' && post.approved) return false;
+    }
     
-    if (filters.dateRange !== 'all') {
+    // Platform filter
+    if (filters.platform !== 'all') {
+      const postPlatforms = post.platforms || [];
+      if (!postPlatforms.includes(filters.platform)) return false;
+    }
+    
+    // Search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      const contentMatch = post.post_content?.toLowerCase().includes(searchLower);
+      const campaignMatch = post.campaigns?.campaign_name?.toLowerCase().includes(searchLower);
+      if (!contentMatch && !campaignMatch) return false;
+    }
+    
+    // Date range filter
+    if (filters.dateRange !== 'all' && post.post_date) {
       const now = new Date();
-      const postDate = new Date(post.scheduledAt);
+      const postDate = new Date(post.post_date);
       const diffHours = (postDate.getTime() - now.getTime()) / (1000 * 60 * 60);
       
       switch (filters.dateRange) {
@@ -243,7 +437,13 @@ const PendingPostsClient: React.FC = () => {
 
   // Status counts for filter badges
   const statusCounts = posts.reduce((acc, post) => {
-    acc[post.status] = (acc[post.status] || 0) + 1;
+    if (post.isCompleted) {
+      acc['published'] = (acc['published'] || 0) + 1;
+    } else if (post.approved && post.post_date) {
+      acc['scheduled'] = (acc['scheduled'] || 0) + 1;
+    } else {
+      acc['failed'] = (acc['failed'] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
@@ -337,10 +537,8 @@ const PendingPostsClient: React.FC = () => {
             >
               <option value="all">All Status ({posts.length})</option>
               <option value="scheduled">Scheduled ({statusCounts.scheduled || 0})</option>
-              <option value="processing">Processing ({statusCounts.processing || 0})</option>
               <option value="published">Published ({statusCounts.published || 0})</option>
-              <option value="failed">Failed ({statusCounts.failed || 0})</option>
-              <option value="paused">Paused ({statusCounts.paused || 0})</option>
+              <option value="failed">Pending Approval ({statusCounts.failed || 0})</option>
             </select>
             
             {/* Platform Filter */}
@@ -399,7 +597,7 @@ const PendingPostsClient: React.FC = () => {
           </div>
         ) : viewMode === 'calendar' ? (
           <CalendarView
-            posts={filteredPosts}
+            posts={filteredPosts.map(convertToScheduledPost)}
             onPostSelect={handlePostEdit}
             onPostUpdate={handlePostUpdate}
           />
@@ -429,7 +627,7 @@ const PendingPostsClient: React.FC = () => {
                     transition={{ delay: index * 0.05 }}
                   >
                     <ScheduledPostCard
-                      post={post}
+                      post={convertToScheduledPost(post)}
                       selected={selectedPosts.includes(post.id)}
                       onSelect={handlePostSelect}
                       onEdit={handlePostEdit}

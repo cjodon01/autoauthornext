@@ -68,30 +68,21 @@ const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
           {/* Primary Actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onBulkAction('pause')}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-lg transition-colors text-sm"
-              title="Pause selected posts"
-            >
-              <Pause className="h-4 w-4" />
-              Pause
-            </button>
-            
-            <button
-              onClick={() => onBulkAction('resume')}
+              onClick={() => onBulkAction('approve')}
               className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-lg transition-colors text-sm"
-              title="Resume selected posts"
+              title="Approve selected posts"
             >
               <Play className="h-4 w-4" />
-              Resume
+              Approve
             </button>
             
             <button
-              onClick={() => onBulkAction('retry')}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-lg transition-colors text-sm"
-              title="Retry failed posts"
+              onClick={() => onBulkAction('unapprove')}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-lg transition-colors text-sm"
+              title="Unapprove selected posts"
             >
-              <RotateCcw className="h-4 w-4" />
-              Retry
+              <Pause className="h-4 w-4" />
+              Unapprove
             </button>
           </div>
 
