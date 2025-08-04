@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowLeft, Calendar, Zap, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import type { Database } from '@/lib/supabase/types';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import type { Database } from '../../lib/supabase/types';
 
 type Brand = Database['public']['Tables']['brands']['Row'];
 

@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Target, Users, Zap, Heart, Lightbulb, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import LoginModal from '@/components/auth/LoginModal';
-import { useAuth } from '@/lib/auth/provider';
+import Header from '../../components/layout/Header';
+import Footer from '../../components/layout/Footer';
+import LoginModal from '../../components/auth/LoginModal';
+import { useAuth } from '../../lib/auth/provider';
 
 export default function AboutClient() {
   const [showLoginModal, setShowLoginModal] = useState(false);

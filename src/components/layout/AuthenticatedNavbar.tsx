@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
-import { useNavigationItems, useCurrentPageLabel } from '@/utils/navigation';
+import { useNavigationItems, useCurrentPageLabel } from '../../utils/navigation';
 import TokenBalance from '../ui/TokenBalance';
 
 interface AuthenticatedNavbarProps {

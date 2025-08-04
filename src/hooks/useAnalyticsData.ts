@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '../lib/auth/provider';
+import { createClient } from '../lib/supabase/client';
 import { toast } from 'sonner';
 
 export interface AnalyticsMetrics {

@@ -3,15 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '../../lib/supabase/client';
 import { toast } from 'sonner';
-import ParticleBackground from '@/components/ui/ParticleBackground';
-import CreateBrandModal from '@/components/dashboard/CreateBrandModal';
-import EditBrandModal from '@/components/dashboard/EditBrandModal';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import AddTokensModal from '@/components/modals/AddTokensModal';
-import { useAuth } from '@/lib/auth/provider';
-import type { Database } from '@/lib/supabase/types';
+import ParticleBackground from '../../components/ui/ParticleBackground';
+import CreateBrandModal from '../../components/dashboard/CreateBrandModal';
+import EditBrandModal from '../../components/dashboard/EditBrandModal';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import AddTokensModal from '../../components/modals/AddTokensModal';
+import { useAuth } from '../../lib/auth/provider';
+import type { Database } from '../../lib/supabase/types';
 
 type Brand = Database['public']['Tables']['brands']['Row'];
 

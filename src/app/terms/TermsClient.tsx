@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, AlertTriangle, CreditCard, Shield, Users, Gavel } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import LoginModal from '@/components/auth/LoginModal';
-import { useAuth } from '@/lib/auth/provider';
+import Header from '../../components/layout/Header';
+import Footer from '../../components/layout/Footer';
+import LoginModal from '../../components/auth/LoginModal';
+import { useAuth } from '../../lib/auth/provider';
 
 export default function TermsClient() {
   const [showLoginModal, setShowLoginModal] = useState(false);

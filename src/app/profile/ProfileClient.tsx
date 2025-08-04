@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import ProfileSettings from '@/components/profile/ProfileSettings';
-import NotificationSettings from '@/components/profile/NotificationSettings';
-import ApiKeyManagement from '@/components/profile/ApiKeyManagement';
-import BillingSettings from '@/components/profile/BillingSettings';
-import SecuritySettings from '@/components/profile/SecuritySettings';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import ProfileSettings from '../../components/profile/ProfileSettings';
+import NotificationSettings from '../../components/profile/NotificationSettings';
+import ApiKeyManagement from '../../components/profile/ApiKeyManagement';
+import BillingSettings from '../../components/profile/BillingSettings';
+import SecuritySettings from '../../components/profile/SecuritySettings';
 import { 
   User,
   Bell,

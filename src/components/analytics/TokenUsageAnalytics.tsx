@@ -29,7 +29,7 @@ import {
   Calendar,
   AlertTriangle
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth/provider';
+import { useAuth } from '../../lib/auth/provider';
 
 interface TokenUsageData {
   date: string;

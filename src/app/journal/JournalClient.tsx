@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PenTool, Mic, MicOff, FileText, Wand2, Share2, Save, Plus, BookOpen, Calendar, Tag, X, Check, Facebook, Twitter, Linkedin, MessageSquare, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
 import { toast } from 'sonner';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
 
 interface JournalEntry {
   id: string;

@@ -3,10 +3,10 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, User, ArrowRight, Search, Tag } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import LoginModal from '@/components/auth/LoginModal';
-import { useAuth } from '@/lib/auth/provider';
+import Header from '../../components/layout/Header';
+import Footer from '../../components/layout/Footer';
+import LoginModal from '../../components/auth/LoginModal';
+import { useAuth } from '../../lib/auth/provider';
 
 interface BlogPost {
   id: string;

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, User, Building2, Globe } from 'lucide-react';
-import { useAuth } from '@/lib/auth/provider';
+import { useAuth } from '../../lib/auth/provider';
 import { toast } from 'sonner';
 
 interface LoginModalProps {

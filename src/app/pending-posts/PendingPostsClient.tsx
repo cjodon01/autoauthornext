@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import ScheduledPostCard from '@/components/pending-posts/ScheduledPostCard';
-import PostEditModal from '@/components/pending-posts/PostEditModal';
-import BulkActionsBar from '@/components/pending-posts/BulkActionsBar';
-import CalendarView from '@/components/pending-posts/CalendarView';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import ScheduledPostCard from '../../components/pending-posts/ScheduledPostCard';
+import PostEditModal from '../../components/pending-posts/PostEditModal';
+import BulkActionsBar from '../../components/pending-posts/BulkActionsBar';
+import CalendarView from '../../components/pending-posts/CalendarView';
 import { 
   Calendar,
   List,

@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { LogOut, Zap, Plus, Edit, Trash2, Search, Play, Pause, Clock, Target, Globe, Calendar, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import ParticleBackground from '@/components/ui/ParticleBackground';
-import CreateBotModal from '@/components/dashboard/CreateBotModal';
-import EditCampaignModal from '@/components/dashboard/EditCampaignModal';
-import TokenBalance from '@/components/ui/TokenBalance';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import type { Database } from '@/lib/supabase/types';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import ParticleBackground from '../../components/ui/ParticleBackground';
+import CreateBotModal from '../../components/dashboard/CreateBotModal';
+import EditCampaignModal from '../../components/dashboard/EditCampaignModal';
+import TokenBalance from '../../components/ui/TokenBalance';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import type { Database } from '../../lib/supabase/types';
 import { DateTime } from 'luxon';
 
 type Campaign = Database['public']['Tables']['campaigns']['Row'] & {

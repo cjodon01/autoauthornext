@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Lexend } from "next/font/google";
-import { AuthProvider } from "@/lib/auth/provider";
+import { AuthProvider } from "../lib/auth/provider";
 import { Toaster } from "sonner";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import PerformanceMonitor from "@/components/PerformanceMonitor";
-import { monitoring } from "@/lib/monitoring";
+import ErrorBoundary from "../components/ErrorBoundary";
+import PerformanceMonitor from "../components/PerformanceMonitor";
+import { monitoring } from "../lib/monitoring";
 import "./globals.css";
 
 const inter = Inter({

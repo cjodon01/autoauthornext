@@ -17,8 +17,8 @@ import {
   Pause,
   Calendar
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
 
 interface PostStatus {
   id: string;

@@ -3,13 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import AddTokensModal from '@/components/modals/AddTokensModal';
-import SinglePostModal from '@/components/dashboard/SinglePostModal';
-import ConnectSocialsModal from '@/components/dashboard/ConnectSocialsModal';
-import CreateBrandModal from '@/components/dashboard/CreateBrandModal';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import AddTokensModal from '../../components/modals/AddTokensModal';
+import SinglePostModal from '../../components/dashboard/SinglePostModal';
+import ConnectSocialsModal from '../../components/dashboard/ConnectSocialsModal';
+import CreateBrandModal from '../../components/dashboard/CreateBrandModal';
 import { Loader2, Plus, BarChart3, BookOpen, Send, ClipboardList, Building2, Settings, Edit, CheckCircle2, Facebook, Twitter, MessageSquare, Linkedin, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 

@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Globe } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import type { Database } from '@/lib/supabase/types';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import type { Database } from '../../lib/supabase/types';
 
 // Types from Supabase
 type SocialConnection = Database['public']['Tables']['social_connections']['Row'];

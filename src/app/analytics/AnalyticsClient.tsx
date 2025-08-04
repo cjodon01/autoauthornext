@@ -2,20 +2,20 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
-import AuthenticatedNavbar from '@/components/layout/AuthenticatedNavbar';
-import ComponentLoader from '@/components/ui/ComponentLoader';
-import { useAnalyticsData } from '@/hooks/useAnalyticsData';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import ComponentLoader from '../../components/ui/ComponentLoader';
+import { useAnalyticsData } from '../../hooks/useAnalyticsData';
 
 // Dynamic imports for heavy analytics components
-const PerformanceMetrics = lazy(() => import('@/components/analytics/PerformanceMetrics'));
-const EngagementCharts = lazy(() => import('@/components/analytics/EngagementCharts'));
-const PlatformBreakdown = lazy(() => import('@/components/analytics/PlatformBreakdown'));
-const RecentPosts = lazy(() => import('@/components/analytics/RecentPosts'));
-const ROICalculator = lazy(() => import('@/components/analytics/ROICalculator'));
-const PostStatusMonitor = lazy(() => import('@/components/analytics/PostStatusMonitor'));
-const TokenUsageAnalytics = lazy(() => import('@/components/analytics/TokenUsageAnalytics'));
+const PerformanceMetrics = lazy(() => import('../../components/analytics/PerformanceMetrics'));
+const EngagementCharts = lazy(() => import('../../components/analytics/EngagementCharts'));
+const PlatformBreakdown = lazy(() => import('../../components/analytics/PlatformBreakdown'));
+const RecentPosts = lazy(() => import('../../components/analytics/RecentPosts'));
+const ROICalculator = lazy(() => import('../../components/analytics/ROICalculator'));
+const PostStatusMonitor = lazy(() => import('../../components/analytics/PostStatusMonitor'));
+const TokenUsageAnalytics = lazy(() => import('../../components/analytics/TokenUsageAnalytics'));
 import { 
   BarChart3, 
   TrendingUp, 

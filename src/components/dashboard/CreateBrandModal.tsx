@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Building2, Sparkles, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/auth/provider';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
 
 interface CreateBrandModalProps {
   isOpen: boolean;
