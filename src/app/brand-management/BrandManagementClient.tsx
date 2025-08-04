@@ -38,7 +38,7 @@ const BrandManagementClient: React.FC = () => {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const { user, signOut } = useAuth();
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   useEffect(() => {
     if (user) {
@@ -62,7 +62,7 @@ const BrandManagementClient: React.FC = () => {
     }
   }, [brands, searchTerm]);
 
-  const fetchBrands = async () => {
+  const fetchBrands = React.useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -87,7 +87,7 @@ const BrandManagementClient: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, supabase]);
 
   const handleLogout = async () => {
     await signOut();

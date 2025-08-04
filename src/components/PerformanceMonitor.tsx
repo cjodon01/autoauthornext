@@ -70,6 +70,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   const fpsHistory = useRef<number[]>([]);
   const animationFrameId = useRef<number | null>(null);
   const metricsIntervalId = useRef<NodeJS.Timeout | null>(null);
+  const networkCallInProgress = useRef(false);
 
   // FPS Monitoring
   const measureFPS = () => {
@@ -128,14 +129,28 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     }
   };
 
-  // Network Latency Monitoring
+  // Network Latency Monitoring - Reduced frequency in production
   const measureNetworkLatency = async () => {
+    if (networkCallInProgress.current) return;
+    
     try {
+      networkCallInProgress.current = true;
       const start = performance.now();
-      await fetch('/api/ping', { method: 'HEAD' }).catch(() => {
+      
+      // Use a simple ping endpoint or fallback
+      const response = await fetch('/api/ping', { 
+        method: 'HEAD',
+        cache: 'no-cache',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      }).catch(() => {
         // Fallback to any available endpoint
-        return fetch('/', { method: 'HEAD' });
+        return fetch('/', { 
+          method: 'HEAD',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(5000)
+        });
       });
+      
       const latency = performance.now() - start;
       
       setMetrics(prev => ({ ...prev, networkLatency: latency }));
@@ -145,8 +160,13 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         addIssue('warning', `High network latency: ${Math.round(latency)}ms`, 'networkLatency');
       }
     } catch (error) {
-      // Network error
-      addIssue('error', 'Network connectivity issues detected', 'networkLatency');
+      // Network error - don't spam issues
+      const lastIssue = issues.find(i => i.metric === 'networkLatency');
+      if (!lastIssue || Date.now() - lastIssue.timestamp > 30000) { // Only show every 30 seconds
+        addIssue('error', 'Network connectivity issues detected', 'networkLatency');
+      }
+    } finally {
+      networkCallInProgress.current = false;
     }
   };
 
@@ -234,12 +254,16 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     // Start FPS monitoring
     animationFrameId.current = requestAnimationFrame(measureFPS);
     
-    // Start periodic measurements
+    // Start periodic measurements - reduced frequency in production
+    const interval = process.env.NODE_ENV === 'production' ? 10000 : 5000; // 10s in prod, 5s in dev
     metricsIntervalId.current = setInterval(() => {
       measureMemory();
       measureDOMNodes();
-      measureNetworkLatency();
-    }, 5000);
+      // Only measure network latency in development or if explicitly enabled
+      if (process.env.NODE_ENV === 'development') {
+        measureNetworkLatency();
+      }
+    }, interval);
 
     // Measure initial load time
     if (document.readyState === 'complete') {
@@ -256,6 +280,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         clearInterval(metricsIntervalId.current);
       }
       window.removeEventListener('load', measureLoadTime);
+      networkCallInProgress.current = false;
     };
   }, [enabled]);
 

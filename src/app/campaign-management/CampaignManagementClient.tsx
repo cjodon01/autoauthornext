@@ -79,7 +79,7 @@ const CampaignManagementClient: React.FC = () => {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const { user } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   useEffect(() => {
     if (user) {
@@ -111,7 +111,7 @@ const CampaignManagementClient: React.FC = () => {
     setFilteredCampaigns(filtered);
   }, [campaigns, searchTerm, statusFilter]);
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = React.useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -148,7 +148,7 @@ const CampaignManagementClient: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

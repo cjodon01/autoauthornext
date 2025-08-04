@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(npm run build:*)",
+      "Bash(find:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npx next build:*)",
+      "Bash(timeout:*)",
+      "Bash(git rm:*)",
+      "Bash(true)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}

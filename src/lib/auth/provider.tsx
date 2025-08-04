@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '../../lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const router = useRouter();
+  const redirectInProgress = useRef(false);
 
   useEffect(() => {
     // Get initial session
@@ -48,16 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Handle sign in
-        if (event === 'SIGNED_IN' && session) {
-          // Redirect to dashboard or intended page
-          window.location.href = '/dashboard';
+        // Handle sign in - use router instead of window.location
+        if (event === 'SIGNED_IN' && session && !redirectInProgress.current) {
+          redirectInProgress.current = true;
+          router.push('/dashboard');
         }
         
-        // Handle sign out
-        if (event === 'SIGNED_OUT') {
-          // Redirect to home page
-          window.location.href = '/';
+        // Handle sign out - use router instead of window.location
+        if (event === 'SIGNED_OUT' && !redirectInProgress.current) {
+          redirectInProgress.current = true;
+          router.push('/');
         }
       }
     );
@@ -65,7 +68,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, router]);
+
+  // Reset redirect flag when component unmounts or router changes
+  useEffect(() => {
+    return () => {
+      redirectInProgress.current = false;
+    };
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
