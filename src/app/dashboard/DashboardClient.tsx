@@ -41,19 +41,86 @@ const DashboardClient: React.FC = () => {
 
   // Fetch data on mount
   useEffect(() => {
+    const fetchConnections = async () => {
+      if (!user) {
+        setDataLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('social_connections')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error fetching connections:', error);
+          setConnections([]);
+        } else {
+          setConnections(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching connections:', error);
+        setConnections([]);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    const fetchBrands = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('brands')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching brands:', error);
+          setBrands([]);
+        } else {
+          setBrands(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching brands:', error);
+        setBrands([]);
+      }
+    };
+
     if (user) {
       fetchConnections();
       fetchBrands();
     } else if (session !== undefined && !user) {
       setDataLoading(false);
     }
-  }, [user, session, fetchConnections, fetchBrands]);
+  }, [user, session]);
 
-  const fetchConnections = React.useCallback(async () => {
-    if (!user) {
-      setDataLoading(false);
-      return;
+  const refreshBrands = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching brands:', error);
+        setBrands([]);
+      } else {
+        setBrands(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+      setBrands([]);
     }
+  };
+
+  const refreshConnections = async () => {
+    if (!user) return;
 
     try {
       const { data, error } = await supabase
@@ -70,32 +137,8 @@ const DashboardClient: React.FC = () => {
     } catch (error) {
       console.error('Error fetching connections:', error);
       setConnections([]);
-    } finally {
-      setDataLoading(false);
     }
-  }, [user, supabase]);
-
-  const fetchBrands = React.useCallback(async () => {
-    if (!user) return;
-  
-    try {
-      const { data, error } = await supabase
-        .from('brands')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-  
-      if (error) {
-        console.error('Error fetching brands:', error);
-        setBrands([]);
-      } else {
-        setBrands(data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching brands:', error);
-      setBrands([]);
-    }
-  }, [user, supabase]);
+  };
 
   const handleCreateCampaign = () => {
     const hasBrands = brands.length > 0 || justCreatedBrand;
@@ -112,7 +155,7 @@ const DashboardClient: React.FC = () => {
   };
 
   const handleBrandCreated = async () => {
-    await fetchBrands();
+    await refreshBrands();
     setShowCreateBrandModal(false);
     setJustCreatedBrand(true);
   };
@@ -460,7 +503,7 @@ const DashboardClient: React.FC = () => {
         isOpen={showConnectSocialsModal}
         onClose={() => setShowConnectSocialsModal(false)}
         connections={safeConnections}
-        refreshConnections={fetchConnections}
+        refreshConnections={refreshConnections}
       />
 
       <CreateBrandModal
