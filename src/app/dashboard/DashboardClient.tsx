@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 const DashboardClient: React.FC = () => {
   const { user, session, loading, signOut } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
   
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showSinglePostModal, setShowSinglePostModal] = useState(false);
@@ -95,7 +95,7 @@ const DashboardClient: React.FC = () => {
     } else if (session !== undefined && !user) {
       setDataLoading(false);
     }
-  }, [user, session]);
+  }, [user, session, supabase]);
 
   const refreshBrands = async () => {
     if (!user) return;
