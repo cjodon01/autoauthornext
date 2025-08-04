@@ -2,15 +2,15 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import ParticleBackground from '@/components/ui/ParticleBackground';
-import Header from '@/components/layout/Header';
-import Hero from '@/components/sections/Hero';
-import Features from '@/components/sections/Features';
-import HowItWorks from '@/components/sections/HowItWorks';
-import SectionDivider from '@/components/sections/SectionDivider';
-import Footer from '@/components/layout/Footer';
-import LoginModal from '@/components/auth/LoginModal';
-import { useAuth } from '@/lib/auth/provider';
+import ParticleBackground from '../components/ui/ParticleBackground';
+import Header from '../components/layout/Header';
+import Hero from '../components/sections/Hero';
+import Features from '../components/sections/Features';
+import HowItWorks from '../components/sections/HowItWorks';
+import SectionDivider from '../components/sections/SectionDivider';
+import Footer from '../components/layout/Footer';
+import LoginModal from '../components/auth/LoginModal';
+import { useAuth } from '../lib/auth/provider';
 
 const LandingPageClient: React.FC = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);

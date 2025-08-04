@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/provider';
+import { useAuth } from '../../lib/auth/provider';
 import HeroIllustration from '../ui/HeroIllustration';
 
 interface HeroProps {
