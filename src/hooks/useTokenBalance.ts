@@ -8,9 +8,10 @@ export const useTokenBalance = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const supabase = createClient();
+    
     const fetchTokenBalance = async () => {
       try {
-        const supabase = createClient();
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
@@ -30,9 +31,13 @@ export const useTokenBalance = () => {
           if (profileError.code === '42703' || profileError.code === '42P01') {
             console.warn('Tokens column not found in profiles table, using default balance');
             setTokenBalance(1000); // Default token balance
+            setLoading(false);
             return;
           }
-          throw profileError;
+          console.error('Error fetching token balance:', profileError);
+          setTokenBalance(1000); // Use default on error
+          setLoading(false);
+          return;
         }
 
         if (profile) {
@@ -40,7 +45,7 @@ export const useTokenBalance = () => {
         }
       } catch (error) {
         console.error('Error fetching token balance:', error);
-        setTokenBalance(0);
+        setTokenBalance(1000); // Use default on error instead of 0
       } finally {
         setLoading(false);
       }
@@ -49,14 +54,13 @@ export const useTokenBalance = () => {
     fetchTokenBalance();
     
     // Set up real-time subscription for token balance updates
-    const supabase = createClient();
     const subscription = supabase
       .channel('profile_tokens')
       .on('postgres_changes', 
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
         (payload) => {
-          if (payload.new && typeof payload.new.tokens === 'number') {
-            setTokenBalance(payload.new.tokens);
+          if (payload.new && typeof payload.new.token_balance === 'number') {
+            setTokenBalance(payload.new.token_balance);
           }
         }
       )

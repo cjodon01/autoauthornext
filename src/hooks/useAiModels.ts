@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '../lib/supabase/client';
 
 interface AiModel {
@@ -29,7 +29,7 @@ export function useAiModels(): UseAiModelsReturn {
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
-  const fetchAiModels = async () => {
+  const fetchAiModels = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -84,11 +84,11 @@ export function useAiModels(): UseAiModelsReturn {
     ]);
     
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchAiModels();
-  }, []);
+  }, [fetchAiModels]);
 
   const refresh = async () => {
     await fetchAiModels();

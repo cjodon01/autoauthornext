@@ -47,9 +47,9 @@ const DashboardClient: React.FC = () => {
     } else if (session !== undefined && !user) {
       setDataLoading(false);
     }
-  }, [user, session]);
+  }, [user, session, fetchConnections, fetchBrands]);
 
-  const fetchConnections = async () => {
+  const fetchConnections = React.useCallback(async () => {
     if (!user) {
       setDataLoading(false);
       return;
@@ -73,9 +73,9 @@ const DashboardClient: React.FC = () => {
     } finally {
       setDataLoading(false);
     }
-  };
+  }, [user, supabase]);
 
-  const fetchBrands = async () => {
+  const fetchBrands = React.useCallback(async () => {
     if (!user) return;
   
     try {
@@ -95,7 +95,7 @@ const DashboardClient: React.FC = () => {
       console.error('Error fetching brands:', error);
       setBrands([]);
     }
-  };
+  }, [user, supabase]);
 
   const handleCreateCampaign = () => {
     const hasBrands = brands.length > 0 || justCreatedBrand;
