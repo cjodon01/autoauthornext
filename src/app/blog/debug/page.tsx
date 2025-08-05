@@ -86,7 +86,7 @@ export default function BlogDebugPage() {
               <p className="text-white/40 text-sm">This could mean:</p>
               <ul className="text-white/40 text-sm mt-2 space-y-1">
                 <li>• No posts exist for this user ID</li>
-                <li>• All posts are in 'draft' status</li>
+                <li>• All posts are in &apos;draft&apos; status</li>
                 <li>• The user ID is incorrect</li>
                 <li>• The blog_posts table is empty</li>
               </ul>

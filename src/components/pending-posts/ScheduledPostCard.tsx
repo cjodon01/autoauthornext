@@ -206,7 +206,7 @@ const ScheduledPostCard: React.FC<ScheduledPostCardProps> = ({
             )}
             
             {/* Meme editing indicator */}
-            {(post.selectedImage || post.textOverlays?.length > 0 || post.capturedImage) && (
+            {(post.selectedImage || (post.textOverlays && post.textOverlays.length > 0) || post.capturedImage) && (
               <div className="flex items-center gap-1 mt-2 text-primary text-xs">
                 <Sparkles className="h-3 w-3" />
                 <span>Enhanced with meme editor</span>

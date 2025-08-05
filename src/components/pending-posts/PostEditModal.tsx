@@ -429,7 +429,7 @@ const PostEditModal: React.FC<PostEditModalProps> = ({
 
     setSaving(true);
     try {
-      let finalMediaUrls = [...(editedPost.mediaUrls || [])];
+      const finalMediaUrls = [...(editedPost.mediaUrls || [])];
       
       // If we have a captured meme, upload it to Supabase storage
       if (capturedImage) {
