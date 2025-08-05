@@ -137,6 +137,72 @@ const MemeCreatorClient: React.FC = () => {
     document.head.appendChild(link);
   }, []);
 
+  // Check for meme concept from AI generator
+  useEffect(() => {
+    const storedMemeConcept = localStorage.getItem('memeConcept');
+    if (storedMemeConcept) {
+      try {
+        const concept = JSON.parse(storedMemeConcept);
+        
+        // Set the image
+        if (concept.imageUrl) {
+          const uploadedImage: SearchResult = {
+            id: 'ai-generated',
+            url: concept.imageUrl,
+            thumbnail: concept.imageUrl,
+            large: concept.imageUrl,
+            original: concept.imageUrl,
+            photographer: 'AI Generated',
+            photographer_url: '',
+            platform: 'ai',
+            width: 800,
+            height: 600,
+            alt: concept.originalDescription || 'AI Generated Image'
+          };
+          setSelectedImage(uploadedImage);
+          setImagePosition({ x: 0, y: 0, scale: 1 });
+        }
+
+        // Add the suggested text overlay
+        if (concept.textOverlay) {
+          const newOverlay: TextOverlay = {
+            id: Date.now().toString(),
+            text: concept.textOverlay,
+            x: concept.textPosition === 'top' ? 50 : concept.textPosition === 'center' ? 150 : 50,
+            y: concept.textPosition === 'top' ? 50 : concept.textPosition === 'center' ? 200 : 300,
+            fontSize: 48,
+            color: '#FFFFFF',
+            fontFamily: concept.fontStyle === 'impact' ? 'Impact, Charcoal, sans-serif' : 
+                       concept.fontStyle === 'comic' ? '"Comic Sans MS", cursive, sans-serif' :
+                       concept.fontStyle === 'bold' ? '"Arial Black", Gadget, sans-serif' :
+                       'Impact, Charcoal, sans-serif',
+            strokeColor: '#000000',
+            strokeWidth: 2,
+            isBold: true,
+            isItalic: false,
+            isUnderline: false,
+            textAlign: 'center',
+            isVisible: true,
+            rotation: 0,
+            width: 300,
+            height: 100,
+            backgroundColor: 'transparent',
+            backgroundOpacity: 0.8
+          };
+          setTextOverlays([newOverlay]);
+          setSelectedOverlay(newOverlay.id);
+        }
+
+        // Clear the stored concept
+        localStorage.removeItem('memeConcept');
+        toast.success('AI-generated meme concept loaded!');
+      } catch (error) {
+        console.error('Error parsing stored meme concept:', error);
+        localStorage.removeItem('memeConcept');
+      }
+    }
+  }, []);
+
   const addTextOverlay = () => {
     const newOverlay: TextOverlay = {
       id: Date.now().toString(),

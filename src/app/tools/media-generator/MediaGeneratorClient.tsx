@@ -32,6 +32,15 @@ interface GeneratedMedia {
   created_at: string;
 }
 
+interface MemeConcept {
+  imagePrompt: string;
+  textOverlay: string;
+  fontStyle: string;
+  textPosition: string;
+  explanation: string;
+  originalDescription: string;
+}
+
 const MediaGeneratorClient: React.FC = () => {
   const { user } = useAuth();
   const router = useRouter();
@@ -43,10 +52,12 @@ const MediaGeneratorClient: React.FC = () => {
   const [style, setStyle] = useState('realistic');
   const [size, setSize] = useState('1024x1024');
   const [generating, setGenerating] = useState(false);
+  const [generatingConcept, setGeneratingConcept] = useState(false);
   
   // Generated media
   const [generatedMedia, setGeneratedMedia] = useState<GeneratedMedia[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<GeneratedMedia | null>(null);
+  const [memeConcept, setMemeConcept] = useState<MemeConcept | null>(null);
 
   const styles = [
     { id: 'realistic', name: 'Realistic', description: 'Photorealistic images' },
@@ -104,6 +115,56 @@ const MediaGeneratorClient: React.FC = () => {
     }
   };
 
+  const handleGenerateMemeConcept = async () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a description");
+      return;
+    }
+
+    if (!user) {
+      toast.error("Please log in to generate meme concepts");
+      return;
+    }
+
+    setGeneratingConcept(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Not logged in");
+        return;
+      }
+
+      // Call the AI meme generator edge function
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ai-meme-generator`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          description: prompt,
+          style
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate meme concept');
+      }
+
+      setMemeConcept(result.memeConcept);
+      toast.success('Meme concept generated! Now generate the image.');
+      
+    } catch (error) {
+      console.error('Error generating meme concept:', error);
+      toast.error('Failed to generate meme concept');
+    } finally {
+      setGeneratingConcept(false);
+    }
+  };
+
   const handleGenerateMedia = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a prompt");
@@ -124,6 +185,9 @@ const MediaGeneratorClient: React.FC = () => {
         return;
       }
 
+      // Use meme concept image prompt if available
+      const finalPrompt = memeConcept?.imagePrompt || prompt;
+
       // Call the generate-media-content edge function
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-media-content`, {
         method: 'POST',
@@ -132,7 +196,7 @@ const MediaGeneratorClient: React.FC = () => {
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          prompt,
+          prompt: finalPrompt,
           type: mediaType,
           style,
           size,
@@ -150,7 +214,7 @@ const MediaGeneratorClient: React.FC = () => {
       const newMedia: GeneratedMedia = {
         id: Date.now().toString(),
         url: result.url || 'https://via.placeholder.com/512x512/10b981/ffffff?text=Generated',
-        prompt,
+        prompt: finalPrompt,
         type: mediaType,
         style,
         size,
@@ -196,6 +260,22 @@ const MediaGeneratorClient: React.FC = () => {
       console.error('Error saving to library:', error);
       toast.error('Failed to save to library');
     }
+  };
+
+  const handleCreateMeme = () => {
+    if (!memeConcept || !selectedMedia) {
+      toast.error('Please generate a meme concept and image first');
+      return;
+    }
+
+    // Store the meme concept in localStorage for the meme creator
+    localStorage.setItem('memeConcept', JSON.stringify({
+      ...memeConcept,
+      imageUrl: selectedMedia.url
+    }));
+
+    // Navigate to meme creator
+    router.push('/tools/meme-creator');
   };
 
   return (
@@ -337,6 +417,46 @@ const MediaGeneratorClient: React.FC = () => {
                   </div>
                 </div>
 
+                {/* AI Meme Concept Generation */}
+                {mediaType === 'meme' && (
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleGenerateMemeConcept}
+                      disabled={!prompt.trim() || generatingConcept}
+                      className="w-full btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                    >
+                      <Zap className="h-4 w-4" />
+                      {generatingConcept ? 'Generating Concept...' : 'Generate Meme Concept'}
+                    </button>
+                    
+                    {memeConcept && (
+                      <div className="p-4 bg-dark-lighter rounded-lg border border-dark-border">
+                        <h4 className="text-sm font-medium text-white mb-2">Generated Concept:</h4>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="text-white/60">Image Prompt:</span>
+                            <p className="text-white">{memeConcept.imagePrompt}</p>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Text Overlay:</span>
+                            <p className="text-white font-medium">{memeConcept.textOverlay}</p>
+                          </div>
+                          <div>
+                            <span className="text-white/60">Style:</span>
+                            <p className="text-white capitalize">{memeConcept.fontStyle}</p>
+                          </div>
+                          {memeConcept.explanation && (
+                            <div>
+                              <span className="text-white/60">Concept:</span>
+                              <p className="text-white">{memeConcept.explanation}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Generate Button */}
                 <button
                   onClick={handleGenerateMedia}
@@ -346,6 +466,17 @@ const MediaGeneratorClient: React.FC = () => {
                   <Sparkles className="h-4 w-4" />
                   {generating ? 'Generating...' : 'Generate Media'}
                 </button>
+
+                {/* Create Meme Button */}
+                {mediaType === 'meme' && memeConcept && selectedMedia && (
+                  <button
+                    onClick={handleCreateMeme}
+                    className="w-full btn btn-accent disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                  >
+                    <Type className="h-4 w-4" />
+                    Create Meme in Editor
+                  </button>
+                )}
               </div>
             </div>
 
