@@ -1,0 +1,526 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Supabase client initialization (using service role key for direct table access)
+const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+// CORS headers for handling cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+// Main Deno server function
+Deno.serve(async (req)=>{
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: corsHeaders
+    });
+  }
+  try {
+    const requestBody = await req.json();
+    console.log('Received request to generate campaign posts:', requestBody);
+    const { campaign_id } = requestBody;
+    if (!campaign_id) {
+      return new Response(JSON.stringify({
+        error: 'Campaign ID is required'
+      }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // Fetch campaign details with all related data needed for post generation
+    // Using page_id(*) and social_id (*) as per your instruction.
+    // This implies campaign.page_id and campaign.social_id will be objects.
+    const { data: campaign, error: campaignError } = await supabase.from('campaigns').select(`
+        *,
+        brands (*),
+        page_id(*),
+        social_id (*)
+      `).eq('id', campaign_id).single();
+    if (campaignError || !campaign) {
+      console.error('Error fetching campaign:', campaignError);
+      return new Response(JSON.stringify({
+        error: 'Campaign not found or error fetching details'
+      }), {
+        status: 404,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    console.log(`Generating posts for campaign: ${campaign.campaign_name}`);
+    console.log('Campaign details for post generation:', {
+      frequency: campaign.ai_posting_frequency,
+      timeToPost: campaign.time_to_post,
+      startDate: campaign.start_date,
+      endDate: campaign.end_date,
+      campaignType: campaign.campaign_type,
+      campaignPlatforms: campaign.platforms,
+      targetPlatforms: campaign.target_platforms,
+      socialPages: campaign.target_page_ids ? 'Exists' : 'Null',
+      socialConnections: campaign.target_connection_ids ? 'Exists' : 'Null' // Log target_connection_ids as per your provided code
+    });
+    // Get OpenAI API key (or any AI service key)
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY not configured in environment variables.');
+    }
+    // Determine the AI model to use based on campaign type
+    let modelToUse = 'gemini-2.0-flash'; // Default to gemini-2.0-flash as per instructions
+    if (campaign.campaign_type === 'general' && campaign.ai_model_for_general_campaign) {
+      const { data: modelRow } = await supabase.from('ai_models').select('api_model_id').eq('id', campaign.ai_model_for_general_campaign).single();
+      if (modelRow) modelToUse = modelRow.api_model_id;
+      else console.warn(`AI model for general campaign ID ${campaign.ai_model_for_general_campaign} not found, using default.`);
+    } else if (campaign.campaign_type === 'journey' && campaign.ai_model_for_journey_map) {
+      const { data: modelRow } = await supabase.from('ai_models').select('api_model_id').eq('id', campaign.ai_model_for_journey_map).single();
+      if (modelRow) modelToUse = modelRow.api_model_id;
+      else console.warn(`AI model for journey campaign ID ${campaign.ai_model_for_journey_map} not found, using default.`);
+    }
+    // 1. Calculate all post dates for the campaign
+    // Ensure start_date and end_date are always Date objects for calculatePostDates
+    const campaignStartDate = campaign.start_date ? new Date(campaign.start_date) : new Date();
+    const campaignEndDate = campaign.end_date ? new Date(campaign.end_date) : new Date(campaignStartDate.getTime() + 7 * 24 * 60 * 60 * 1000); // Default to 7 days if no end date
+    const postDates = calculatePostDates(campaignStartDate, campaignEndDate, campaign.ai_posting_frequency, campaign.time_to_post // This is now correctly passed and will be handled in the function
+    );
+    if (postDates.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'No post dates calculated for the campaign.'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // 2. Build the AI prompt to generate all posts in JSON format
+    const { prompt: aiPromptUsed, maxTokens } = buildMultiPostAiPrompt(campaign, postDates.length);
+    console.log('Sending prompt to AI:', aiPromptUsed);
+
+    // 2.5. Deduct tokens before generating content
+    try {
+      const deductResponse = await fetch(`${Deno.env.get('SUPABASE_URL')?.replace('/rest/v1', '') || 'http://localhost:54321'}/.netlify/functions/deductTokens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: campaign.user_id,
+          task_type: campaign.campaign_type === 'journey' ? 'journey_campaign_post' : 'general_campaign_post',
+          model_id: modelToUse,
+          include_image: false,
+          include_meme: false,
+          platform_count: campaignTargetPlatformsArray?.length || 1
+        })
+      });
+
+      if (!deductResponse.ok) {
+        return new Response(JSON.stringify({
+          error: 'Insufficient tokens or server error'
+        }), {
+          status: 402,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error deducting tokens:', error);
+      return new Response(JSON.stringify({
+        error: 'Failed to process token deduction'
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    // 3. Call the AI to generate all posts
+    let generatedPosts;
+    try {
+      generatedPosts = await generateContentWithAI(modelToUse, aiPromptUsed, maxTokens, openaiApiKey);
+    } catch (aiGenError) {
+      console.error('Error during AI content generation:', aiGenError);
+      return new Response(JSON.stringify({
+        error: 'Failed to generate content from AI',
+        details: aiGenError.message
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // --- NEW Debugging logs for generatedPosts immediately before the loop ---
+    console.log('DEBUG: Raw generatedPosts variable BEFORE loop:', generatedPosts);
+    console.log('DEBUG: Type of generatedPosts BEFORE loop:', typeof generatedPosts);
+    console.log('DEBUG: Is generatedPosts an Array BEFORE loop?', Array.isArray(generatedPosts));
+    console.log('DEBUG: Length of generatedPosts BEFORE loop:', generatedPosts ? generatedPosts.length : 'N/A');
+    // --- End NEW Debugging logs ---
+    // Assert that generatedPosts is an array before attempting to iterate
+    console.assert(Array.isArray(generatedPosts), 'Assertion Failed: generatedPosts must be an array before iteration. Value:', generatedPosts);
+    if (generatedPosts.length === 0) {
+      console.warn('AI generated an empty list of posts.');
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'AI generated an empty list of posts for the campaign.'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // 4. Prepare posts for insertion into the 'posts' table
+    const postsToInsert = [];
+    // Determine the primary target platform for this specific campaign instance
+    // This logic is made more robust to handle potential malformed JSON or comma-separated strings.
+    let targetPlatform = null;
+    let campaignTargetPlatformsArray = []; // To store the parsed array of target platforms
+    if (campaign.target_platforms) {
+      try {
+        // Attempt to parse as JSON first
+        const parsed = JSON.parse(campaign.target_platforms);
+        if (Array.isArray(parsed)) {
+          campaignTargetPlatformsArray = parsed.map((p)=>String(p).trim()); // Ensure elements are strings and trimmed
+          if (campaignTargetPlatformsArray.length > 0 && campaignTargetPlatformsArray[0] !== '') {
+            targetPlatform = campaignTargetPlatformsArray[0].toLowerCase();
+          }
+        } else {
+          console.warn(`campaign.target_platforms for campaign ${campaign.id} was valid JSON but not an array. Value:`, campaign.target_platforms);
+        }
+      } catch (e) {
+        console.warn(`JSON.parse on campaign.target_platforms failed for campaign ${campaign.id}. Falling back to comma-separated string parsing. Error:`, e.message);
+        // Fallback: treat as comma-separated string if JSON parsing fails
+        const platformsArray = String(campaign.target_platforms).split(',').map((p)=>p.trim());
+        if (platformsArray.length > 0 && platformsArray[0] !== '') {
+          targetPlatform = platformsArray[0].toLowerCase();
+          campaignTargetPlatformsArray = platformsArray; // Store for the postsToInsert
+        }
+      }
+    }
+    console.log('Processing posts for primary targetPlatform:', targetPlatform);
+    console.log('All campaign target platforms (parsed/derived):', campaignTargetPlatformsArray);
+    for(let i = 0; i < generatedPosts.length; i++){
+      const generatedPost = generatedPosts[i];
+      const postDate = postDates[i]; // Map generated content to its corresponding date
+      // Ensure content is a string
+      const postContent = typeof generatedPost.content === 'string' ? generatedPost.content : JSON.stringify(generatedPost.content);
+      // Use campaign.social_id and campaign.page_id which are now fetched as objects
+      if (targetPlatform) {
+        // Prepare the post object for insertion
+        postsToInsert.push({
+          campaign_id: campaign.id,
+          post_content: postContent,
+          post_date: postDate.toISOString(),
+          // Pass the JavaScript array directly for target_platforms
+          target_platforms: campaignTargetPlatformsArray,
+          // Pass the JavaScript arrays directly for UUID[] columns
+          target_page_ids: campaign.target_page_ids,
+          target_connection_ids: campaign.target_connection_ids,
+          approved: false,
+          // Use the provider from the social_id object for the 'platform' field in the posts table
+          ai_model_used: modelToUse,
+          ai_prompt_used: aiPromptUsed
+        });
+      } else {
+        console.warn(`Campaign ${campaign.id} is missing a primary target platform (${targetPlatform}) or social connection (social_id: ${campaign.social_id ? 'Exists' : 'Null'}). Skipping post insertion for this generated post.`);
+      }
+    }
+    // 5. Insert all generated posts into the 'posts' table
+    if (postsToInsert.length > 0) {
+      const { error: insertError } = await supabase.from('posts').insert(postsToInsert);
+      if (insertError) {
+        console.error('Error inserting posts into DB:', insertError);
+        throw new Error(`Failed to insert posts: ${insertError.message}`);
+      }
+      console.log(`Successfully inserted ${postsToInsert.length} posts into the database.`);
+    } else {
+      console.log('No posts generated or valid platforms/connections selected for insertion.');
+    }
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Successfully generated and saved ${postsToInsert.length} posts for campaign ${campaign.campaign_name}.`,
+      campaign_id: campaign.id,
+      generated_posts_count: postsToInsert.length
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    console.error('Error in generate-campaign-posts function:', error);
+    return new Response(JSON.stringify({
+      error: 'Internal server error',
+      details: error.message
+    }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+  }
+});
+/**
+ * Calculates all future post dates based on campaign schedule.
+ * @param {Date} campaignStartDate The campaign's start date.
+ * @param {Date} campaignEndDate The campaign's end date.
+ * @param {string} frequency 'daily' or 'weekly'.
+ * @param {string | null | undefined} timeToPost 'HH:MM' string (e.g., '09:00').
+ * @returns {Date[]} An array of Date objects for each scheduled post.
+ */ function calculatePostDates(campaignStartDate, campaignEndDate, frequency, timeToPost) {
+  const dates = [];
+  // Provide a default time if timeToPost is null or undefined
+  const [hourStr, minuteStr] = (timeToPost || '09:00').split(':');
+  const hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr, 10);
+  let currentDate = new Date(campaignStartDate); // Start from the campaign's start date
+  currentDate.setHours(hour, minute, 0, 0); // Set the scheduled time
+  // Adjust `currentDate` forward if the scheduled time for the `campaignStartDate` has already passed relative to now.
+  const now = new Date();
+  if (currentDate.getTime() < now.getTime()) {
+    // If the scheduled time for the start date has passed, start from the next day at the scheduled time.
+    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate.setHours(hour, minute, 0, 0);
+  }
+  while(currentDate <= campaignEndDate){
+    if (frequency === 'daily') {
+      dates.push(new Date(currentDate)); // Push a new instance to avoid reference issues
+      currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+    } else if (frequency === 'weekly') {
+      // For weekly, the posting day is determined by the campaign's start date's day of the week
+      const targetDayIndex = campaignStartDate.getDay(); // 0 for Sunday, 1 for Monday, etc.
+      // Calculate days to add to reach the next target day
+      let dayToAdd = (targetDayIndex - currentDate.getDay() + 7) % 7;
+      // If currentDate is already the targetDayIndex, but the time has passed for this week,
+      // or if it's the same day as startDate but before the actual startDate,
+      // we need to find the *next* occurrence.
+      const potentialNextPostDate = new Date(currentDate);
+      potentialNextPostDate.setDate(currentDate.getDate() + dayToAdd);
+      potentialNextPostDate.setHours(hour, minute, 0, 0);
+      // If the potential next post date is today's target day, but its time has already passed
+      // relative to the current actual time, or it's before the campaign start date,
+      // then we need to skip this week and go to the next.
+      if (potentialNextPostDate.toDateString() === currentDate.toDateString() && potentialNextPostDate.getTime() < now.getTime()) {
+        // If it's the same day and the time has passed, jump to next week's target day
+        currentDate.setDate(currentDate.getDate() + 7);
+        currentDate.setHours(hour, minute, 0, 0);
+        continue; // Skip current iteration and re-evaluate from the new currentDate
+      }
+      if (potentialNextPostDate <= campaignEndDate) {
+        dates.push(new Date(potentialNextPostDate)); // Push a new instance
+      }
+      // Always advance to the next week's target day for the next iteration
+      currentDate.setDate(currentDate.getDate() + dayToAdd + (dayToAdd === 0 ? 7 : 0)); // Ensure it moves to next week
+      currentDate.setHours(hour, minute, 0, 0); // Keep the time consistent
+    } else {
+      console.warn(`Unsupported frequency: ${frequency}`);
+      break;
+    }
+  }
+  return dates;
+}
+/**
+ * Builds a comprehensive AI prompt to generate multiple social media posts in JSON format.
+ * @param {any} campaign The campaign object.
+ * @param {number} numberOfPosts The total number of posts to generate.
+ * @returns {{prompt: string, maxTokens: number}} The AI prompt string and recommended max tokens.
+ */ function buildMultiPostAiPrompt(campaign, numberOfPosts) {
+  const brand = campaign.brands || {};
+  let specificCampaignContext = '';
+  const brandContext = brand.name ? `Brand: ${brand.name}${brand.industry ? ` (${brand.industry})` : ''}` : '';
+  const postLength = campaign.post_length_type || 'medium'; // short, medium, long
+  let maxTokensPerPost = 100; // Default for 'short'
+  if (postLength === 'medium') maxTokensPerPost = 200;
+  if (postLength === 'long') maxTokensPerPost = 350;
+  // Adjust maxTokens for JSON overhead and multiple posts
+  const totalMaxTokens = numberOfPosts * maxTokensPerPost + 100; // Add buffer for JSON structure
+  let dayNumberInstruction = 'do not include day number in posts';
+  if (campaign.campaign_type === 'general') {
+    console.log('Building prompt for general campaign:', campaign.campaign_name);
+    console.log('day number instruction:', dayNumberInstruction);
+    specificCampaignContext = `This is a general campaign for: "${campaign.description}".`;
+  } else if (campaign.campaign_type === 'journey') {
+    console.log('Building prompt for journey campaign:', campaign.campaign_name);
+    console.log('day number instruction:', dayNumberInstruction);
+    specificCampaignContext = `This is a journey campaign called "${campaign.campaign_name}".
+    Journey Goal: ${campaign.goal || 'Not specified'}
+    Journey Description: ${campaign.description || 'Not specified'}
+    Target Audience: ${campaign.target_audience_journey || campaign.brands?.target_audience || 'general audience'}
+    Journey Map (topics per day, if available): ${campaign.journey_map ? campaign.journey_map.join(', ') : 'Not specified'}
+    Each post should represent a sequential day in this journey.`;
+    // Conditionally add day_number instruction based on campaign type
+    dayNumberInstruction = `For journey campaigns, include 'day_number':
+{
+  "posts": [
+    { "content": "Day 1: Starting our amazing journey...", "day_number": 1 },
+    { "content": "Day 2: Progressing well on our journey!", "day_number": 2 }
+    // ... more posts
+  ]
+}`;
+  }
+  const prompt = `
+You are a professional social media content creator tasked with generating a series of ${numberOfPosts} social media posts.
+Your output MUST be a JSON array of objects, where each object has a 'content' field for the post text and, if applicable for journey campaigns, a 'day_number' field indicating the sequence.
+
+${brandContext}
+Brand Voice: ${campaign.brands?.brand_voice || campaign.ai_tone_preference?.[0] || 'authentic and engaging'}
+Target Audience: ${campaign.target_audience_specific?.description || campaign.target_audience_psychographics || campaign.brands?.target_audience || 'general audience'}
+Post Length: ${postLength}. Ensure each post is concise and impactful for its specified length.
+
+${specificCampaignContext}
+
+Instructions for generating posts:
+- Generate exactly ${numberOfPosts} distinct social media posts.
+- Each post should be engaging and platform-appropriate.
+- Maintain consistency with the brand voice and campaign description.
+- For journey campaigns, ensure narrative progression and build anticipation for subsequent posts. Each post should subtly indicate its place in the journey (e.g., "Day 1", "Day 2").
+- Do NOT include any introductory or concluding text outside the JSON. Only output the JSON.
+
+Example JSON structure:
+{
+  "posts": [
+    { "content": "This is the content for post 1." },
+    { "content": "This is the content for post 2." }
+    // ... more posts
+  ]
+}
+${dayNumberInstruction}
+Generate the posts now.
+`.trim();
+  return {
+    prompt,
+    maxTokens: totalMaxTokens
+  };
+}
+/**
+ * Calls the AI model to generate content based on the prompt and desired structure.
+ * @param {string} modelToUse The API model ID (e.g., 'gemini-2.0-flash', 'gpt-4o-mini').
+ * @param {string} aiPrompt The prompt to send to the AI.
+ * @param {number} maxTokens The maximum number of tokens to generate.
+ * @param {string} apiKey The API key for the AI service.
+ * @returns {Promise<Array<{content: string, day_number?: number}>>} An array of generated post objects.
+ */ async function generateContentWithAI(modelToUse, aiPrompt, maxTokens, apiKey) {
+  const isGemini = modelToUse.startsWith('gemini');
+  let apiUrl = '';
+  let payload;
+  if (isGemini) {
+    apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKey}`;
+    payload = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: aiPrompt
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            "posts": {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  "content": {
+                    "type": "STRING"
+                  },
+                  "day_number": {
+                    "type": "NUMBER"
+                  } // Optional for journey campaigns
+                },
+                required: [
+                  "content"
+                ]
+              }
+            }
+          },
+          required: [
+            "posts"
+          ]
+        }
+      }
+    };
+  } else {
+    apiUrl = 'https://api.openai.com/v1/chat/completions';
+    payload = {
+      model: modelToUse,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a professional social media content creator. Generate content as a JSON array of posts.'
+        },
+        {
+          role: 'user',
+          content: aiPrompt
+        }
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      response_format: {
+        type: "json_object"
+      } // Request JSON object for OpenAI
+    };
+  }
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error('AI API error response:', errorData);
+    throw new Error(`AI API error: ${response.status} - ${JSON.stringify(errorData)}`);
+  }
+  const data = await response.json();
+  let generatedContent = [];
+  let rawContent;
+  if (isGemini) {
+    rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  } else {
+    rawContent = data.choices?.[0]?.message?.content;
+  }
+  if (!rawContent) {
+    throw new Error('AI response content is missing.');
+  }
+  try {
+    const parsedJson = JSON.parse(rawContent);
+    console.log('Parsed JSON from AI:', parsedJson); // Log the full parsed JSON
+    // Explicitly check for the 'posts' property and ensure it's an array
+    if (parsedJson && typeof parsedJson === 'object' && Array.isArray(parsedJson.posts)) {
+      generatedContent = parsedJson.posts;
+      console.log('Successfully extracted "posts" array from .posts property.');
+    } else if (Array.isArray(parsedJson)) {
+      console.warn('AI returned a direct array instead of an object with a "posts" key. Attempting to use it directly.');
+      generatedContent = parsedJson;
+    } else {
+      // If neither is an array, it's an unexpected format
+      console.error('AI response did not contain a valid "posts" array or a direct array at the root:', parsedJson);
+      throw new Error('AI response did not contain a valid "posts" array or a direct array at the root.');
+    }
+  } catch (parseError) {
+    console.error('Failed to parse AI response JSON or extract posts array:', rawContent, parseError);
+    throw new Error('AI response was not valid JSON or did not contain an iterable "posts" array.');
+  }
+  // Final validation to ensure generatedContent is indeed an array before returning
+  if (!Array.isArray(generatedContent)) {
+    console.error('Internal error: generateContentWithAI is about to return a non-array after all parsing attempts:', generatedContent);
+    throw new Error('Internal error: AI content processing resulted in non-array output.');
+  }
+  return generatedContent;
+}

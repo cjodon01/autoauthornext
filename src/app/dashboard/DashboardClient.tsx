@@ -31,6 +31,7 @@ import ParticleBackground from '../../components/ui/ParticleBackground';
 import CreateBotModal from '../../components/dashboard/CreateBotModal';
 import CreateBrandModal from '../../components/dashboard/CreateBrandModal';
 import ConnectSocialsModal from '../../components/dashboard/ConnectSocialsModal';
+import SinglePostModal from '../../components/dashboard/SinglePostModal';
 import OnboardingWizard from '../../components/onboarding/OnboardingWizard';
 import SimpleCampaignCreator from '../../components/campaigns/SimpleCampaignCreator';
 import TokenBalance from '../../components/ui/TokenBalance';
@@ -102,9 +103,24 @@ const DashboardClient: React.FC = () => {
         const hasConnections = connectionsResult.data && connectionsResult.data.length > 0;
         const hasCampaigns = campaignsResult.data && campaignsResult.data.length > 0;
 
-        if (!hasBrands && !hasConnections && !hasCampaigns) {
+        console.log('Debug - User data check:', {
+          userId: user.id,
+          hasBrands,
+          hasConnections,
+          hasCampaigns,
+          brandsCount: brandsResult.data?.length || 0,
+          connectionsCount: connectionsResult.data?.length || 0,
+          campaignsCount: campaignsResult.data?.length || 0
+        });
+
+        // Show onboarding if user has no connections and no campaigns
+        // (Brands are created automatically with the profile, so we don't check for that)
+        if (!hasConnections && !hasCampaigns) {
+          console.log('Debug - First time user detected, showing onboarding wizard');
           setIsFirstTimeUser(true);
           setShowOnboardingWizard(true);
+        } else {
+          console.log('Debug - Not a first time user, skipping onboarding wizard');
         }
 
       } catch (error) {
@@ -591,6 +607,11 @@ const DashboardClient: React.FC = () => {
         isOpen={showSimpleCampaignCreator}
         onClose={() => setShowSimpleCampaignCreator(false)}
         onCampaignCreated={handleCampaignCreated}
+      />
+
+      <SinglePostModal
+        isOpen={showSinglePostModal}
+        onClose={() => setShowSinglePostModal(false)}
       />
     </div>
   );

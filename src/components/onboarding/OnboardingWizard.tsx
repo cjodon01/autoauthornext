@@ -21,7 +21,8 @@ import {
   X,
   SkipForward,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth/provider';
@@ -43,6 +44,7 @@ interface BrandData {
   primary_color: string;
   secondary_color: string;
   core_values: string[];
+  url?: string;
 }
 
 interface SocialConnection {
@@ -79,10 +81,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [skipping, setSkipping] = useState(false);
+  const [existingBrand, setExistingBrand] = useState<any>(null);
   const [socialPages, setSocialPages] = useState<SocialPage[]>([]);
+  const [isFbSdkLoaded, setIsFbSdkLoaded] = useState(false);
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
-  
-  // Step data
+
   const [brandData, setBrandData] = useState<BrandData>({
     name: '',
     description: '',
@@ -91,7 +94,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     brand_voice: 'professional',
     primary_color: '#8A2BE2',
     secondary_color: '#00BFFF',
-    core_values: ['Quality', 'Innovation']
+    core_values: ['']
   });
 
   const [socialConnections, setSocialConnections] = useState<SocialConnection[]>([
@@ -104,7 +107,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: '',
     description: '',
-    goal: 'awareness',
+    goal: 'engagement',
     frequency: 'daily',
     platforms: [],
     selectedPages: {}
@@ -173,10 +176,105 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     { value: 'once', label: 'One-time', description: 'Single post campaign' }
   ];
 
+  // Load Facebook SDK
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ((window as any).FB) {
+      setIsFbSdkLoaded(true);
+      return;
+    }
+
+    if (!document.getElementById("fb-root")) {
+      const fbRoot = document.createElement("div");
+      fbRoot.id = "fb-root";
+      document.body.appendChild(fbRoot);
+    }
+
+    const script = document.createElement("script");
+    script.id = "facebook-jssdk";
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.async = true;
+    script.onload = () => {
+      (window as any).FB.init({
+        appId: "686038484393201",
+        cookie: true,
+        xfbml: false,
+        version: "v17.0",
+      });
+      setIsFbSdkLoaded(true);
+    };
+    script.onerror = () => {
+      toast.error("Failed to load Facebook SDK");
+    };
+    document.body.appendChild(script);
+  }, []);
+
+  // Load existing brand and social pages
+  useEffect(() => {
+    if (isOpen && user) {
+      loadExistingBrand();
+      fetchSocialPages();
+    }
+  }, [isOpen, user]);
+
+  const loadExistingBrand = async () => {
+    if (!user) return;
+
+    try {
+      const { data: brands, error } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (brands && brands.length > 0) {
+        const brand = brands[0];
+        setExistingBrand(brand);
+        setBrandData({
+          name: brand.name || '',
+          description: brand.description || '',
+          industry: brand.industry || '',
+          target_audience: brand.target_audience || '',
+          brand_voice: brand.brand_voice || 'professional',
+          primary_color: brand.primary_color || '#8A2BE2',
+          secondary_color: brand.secondary_color || '#00BFFF',
+          core_values: brand.core_values || ['']
+        });
+      }
+    } catch (error) {
+      console.error('Error loading existing brand:', error);
+    }
+  };
+
+  const fetchSocialPages = async () => {
+    if (!user) return;
+
+    try {
+      const { data: pages, error } = await supabase
+        .from('social_pages')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setSocialPages(pages || []);
+    } catch (error) {
+      console.error('Error fetching social pages:', error);
+    }
+  };
+
   const handleNext = () => {
-    if (currentStep < steps.length) {
+    if (currentStep === 1) {
+      // For brand step, update the existing brand
+      if (existingBrand) {
+        handleUpdateBrand();
+      } else {
+        setCurrentStep(2);
+      }
+    } else if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
-      setCompletedSteps(prev => [...prev, currentStep]);
     }
   };
 
@@ -220,24 +318,48 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const handleCompleteOnboarding = async () => {
     setLoading(true);
     try {
-      // Create brand
-      const { data: brand, error: brandError } = await supabase
-        .from('brands')
-        .insert({
-          user_id: user?.id,
-          name: brandData.name,
-          description: brandData.description,
-          industry: brandData.industry,
-          target_audience: brandData.target_audience,
-          brand_voice: brandData.brand_voice,
-          primary_color: brandData.primary_color,
-          secondary_color: brandData.secondary_color,
-          core_values: brandData.core_values.filter(v => v.trim() !== '')
-        })
-        .select()
-        .single();
+      // Update existing brand if it exists, otherwise create new one
+      let brandId = existingBrand?.id;
+      
+      if (existingBrand) {
+        // Update existing brand
+        const { error: updateError } = await supabase
+          .from('brands')
+          .update({
+            name: brandData.name,
+            description: brandData.description,
+            industry: brandData.industry,
+            target_audience: brandData.target_audience,
+            brand_voice: brandData.brand_voice,
+            primary_color: brandData.primary_color,
+            secondary_color: brandData.secondary_color,
+            core_values: brandData.core_values.filter(v => v.trim() !== ''),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingBrand.id);
 
-      if (brandError) throw brandError;
+        if (updateError) throw updateError;
+      } else {
+        // Create new brand
+        const { data: brand, error: createError } = await supabase
+          .from('brands')
+          .insert({
+            user_id: user?.id,
+            name: brandData.name,
+            description: brandData.description,
+            industry: brandData.industry,
+            target_audience: brandData.target_audience,
+            brand_voice: brandData.brand_voice,
+            primary_color: brandData.primary_color,
+            secondary_color: brandData.secondary_color,
+            core_values: brandData.core_values.filter(v => v.trim() !== '')
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        brandId = brand.id;
+      }
 
       // Create first campaign if data is provided
       if (campaignData.name && campaignData.platforms.length > 0) {
@@ -251,7 +373,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
         await supabase.from('campaigns').insert({
           user_id: user?.id,
-          brand_id: brand.id,
+          brand_id: brandId,
           campaign_name: campaignData.name,
           description: campaignData.description,
           goal: campaignData.goal,
@@ -277,6 +399,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   };
 
   const handleSocialConnect = async (provider: string) => {
+    if (!user) return;
+
     setSocialConnections(prev => 
       prev.map(conn => 
         conn.provider === provider 
@@ -286,22 +410,110 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     );
 
     try {
-      // Simulate social connection (replace with actual OAuth flow)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setSocialConnections(prev => 
-        prev.map(conn => 
-          conn.provider === provider 
-            ? { ...conn, connected: true, connecting: false }
-            : conn
-        )
-      );
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Not logged in");
+        setSocialConnections(prev => 
+          prev.map(conn => 
+            conn.provider === provider 
+              ? { ...conn, connecting: false }
+              : conn
+          )
+        );
+        return;
+      }
 
-      toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} connected successfully!`);
-    } catch (error) {
-      console.error('Error connecting social account:', error);
-      toast.error(`Failed to connect ${provider}`);
-      
+      if (provider === "facebook") {
+        if (!isFbSdkLoaded || typeof (window as any).FB === "undefined") {
+          toast.error("Facebook SDK not loaded");
+          setSocialConnections(prev => 
+            prev.map(conn => 
+              conn.provider === provider 
+                ? { ...conn, connecting: false }
+                : conn
+            )
+          );
+          return;
+        }
+
+        (window as any).FB.login((response: any) => {
+          (async () => {
+            if (response.status === "connected") {
+              const shortLivedToken = response.authResponse.accessToken;
+
+              const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/social-media-connector`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ provider: "facebook", user_token: shortLivedToken }),
+              });
+
+              const result = await res.json();
+
+              if (!res.ok) {
+                toast.error(result.error || "Facebook connection failed");
+              } else {
+                toast.success(`Facebook ${result.pages_count ? "refreshed" : "connected"} successfully`);
+                setSocialConnections(prev => 
+                  prev.map(conn => 
+                    conn.provider === provider 
+                      ? { ...conn, connected: true, connecting: false }
+                      : conn
+                  )
+                );
+                await fetchSocialPages();
+              }
+            } else {
+              toast.error("Facebook login failed");
+            }
+            setSocialConnections(prev => 
+              prev.map(conn => 
+                conn.provider === provider 
+                  ? { ...conn, connecting: false }
+                  : conn
+              )
+            );
+          })();
+        }, {
+          auth_type: 'rerequest',
+          scope: "pages_manage_posts,business_management,pages_show_list,read_insights,pages_read_engagement"
+        });
+
+        return;
+      }
+
+      // For other platforms, redirect to OAuth
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/social-media-connector`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ provider }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || `Failed to connect/refresh ${provider}`);
+      } else if (result.url) {
+        window.location.href = result.url;
+      } else {
+        toast.success(`${provider} account refreshed`);
+        setSocialConnections(prev => 
+          prev.map(conn => 
+            conn.provider === provider 
+              ? { ...conn, connected: true, connecting: false }
+              : conn
+          )
+        );
+        await fetchSocialPages();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong");
+    } finally {
       setSocialConnections(prev => 
         prev.map(conn => 
           conn.provider === provider 
@@ -368,103 +580,251 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     }));
   };
 
+  const handleGenerateBrand = async () => {
+    if (!brandData.name || !brandData.description) {
+      toast.error('Please provide brand name and description');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Call the AI brand building function
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ai-brand-build`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          brand_name: brandData.name,
+          brand_url: brandData.url || '',
+          brand_summary: brandData.description,
+          brand_type: 'individual'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate brand profile');
+      }
+
+      const aiBrandProfile = await response.json();
+
+      // Update brand data with AI-generated content
+      setBrandData(prev => ({
+        ...prev,
+        description: aiBrandProfile.description || prev.description,
+        industry: aiBrandProfile.industry || prev.industry,
+        target_audience: aiBrandProfile.target_audience || prev.target_audience,
+        brand_voice: aiBrandProfile.brand_voice || prev.brand_voice,
+        core_values: aiBrandProfile.core_values || prev.core_values
+      }));
+
+      toast.success('Brand profile generated successfully!');
+    } catch (error) {
+      console.error('Error generating brand profile:', error);
+      toast.error('Failed to generate brand profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateBrand = async () => {
+    if (!existingBrand) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('brands')
+        .update({
+          name: brandData.name,
+          description: brandData.description,
+          industry: brandData.industry,
+          target_audience: brandData.target_audience,
+          brand_voice: brandData.brand_voice,
+          primary_color: brandData.primary_color,
+          secondary_color: brandData.secondary_color,
+          core_values: brandData.core_values.filter(v => v.trim() !== ''),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingBrand.id);
+
+      if (error) throw error;
+
+      toast.success('Brand updated successfully!');
+      setCurrentStep(2);
+    } catch (error) {
+      console.error('Error updating brand:', error);
+      toast.error('Failed to update brand');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">
-                Brand Name *
-              </label>
-              <input
-                type="text"
-                value={brandData.name}
-                onChange={(e) => setBrandData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full bg-dark-lighter border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="Enter your brand name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">
-                Industry
-              </label>
-              <select
-                value={brandData.industry}
-                onChange={(e) => setBrandData(prev => ({ ...prev, industry: e.target.value }))}
-                className="w-full bg-dark-lighter border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">Select your industry</option>
-                {industries.map(industry => (
-                  <option key={industry} value={industry}>{industry}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">
-                Target Audience
-              </label>
-              <input
-                type="text"
-                value={brandData.target_audience}
-                onChange={(e) => setBrandData(prev => ({ ...prev, target_audience: e.target.value }))}
-                className="w-full bg-dark-lighter border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="e.g., Young professionals, Small business owners"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-3">
-                Brand Voice
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {brandVoices.map(voice => (
-                  <button
-                    key={voice.value}
-                    type="button"
-                    onClick={() => setBrandData(prev => ({ ...prev, brand_voice: voice.value }))}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      brandData.brand_voice === voice.value
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-dark-border bg-dark-lighter text-white/70 hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="font-medium">{voice.label}</div>
-                    <div className="text-xs opacity-70">{voice.description}</div>
-                  </button>
-                ))}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-4">
+                <Building2 className="h-8 w-8 text-primary" />
               </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {existingBrand ? 'Update Your Brand Profile' : 'Build Your Brand Profile'}
+              </h3>
+              <p className="text-white/60">
+                {existingBrand 
+                  ? 'Let\'s enhance your existing brand with AI-powered insights and analysis'
+                  : 'Tell us about your brand and we\'ll help you build a comprehensive profile'
+                }
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">
-                  Primary Color
-                </label>
-                <div className="flex items-center gap-2">
+                <label className="block text-sm font-medium mb-2">Brand Name *</label>
+                <input
+                  type="text"
+                  value={brandData.name}
+                  onChange={(e) => setBrandData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
+                  placeholder="Enter your brand name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Brand Description *</label>
+                <textarea
+                  value={brandData.description}
+                  onChange={(e) => setBrandData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none resize-none"
+                  rows={4}
+                  placeholder="Describe what your brand does, your mission, and what makes you unique..."
+                />
+              </div>
+
+              {brandData.name && brandData.description && (
+                <button
+                  onClick={handleGenerateBrand}
+                  disabled={loading}
+                  className="w-full btn btn-primary btn-lg inline-flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Generating Brand Profile...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-5 w-5" />
+                      Generate AI Brand Profile
+                    </>
+                  )}
+                </button>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Industry</label>
+                  <input
+                    type="text"
+                    value={brandData.industry}
+                    onChange={(e) => setBrandData(prev => ({ ...prev, industry: e.target.value }))}
+                    className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
+                    placeholder="e.g., Technology, Health, Education"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Target Audience</label>
+                  <input
+                    type="text"
+                    value={brandData.target_audience}
+                    onChange={(e) => setBrandData(prev => ({ ...prev, target_audience: e.target.value }))}
+                    className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
+                    placeholder="e.g., Young professionals, 25-35"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Brand Voice</label>
+                <select
+                  value={brandData.brand_voice}
+                  onChange={(e) => setBrandData(prev => ({ ...prev, brand_voice: e.target.value }))}
+                  className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
+                >
+                  <option value="professional">Professional</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="authoritative">Authoritative</option>
+                  <option value="casual">Casual</option>
+                  <option value="inspirational">Inspirational</option>
+                  <option value="humorous">Humorous</option>
+                  <option value="educational">Educational</option>
+                  <option value="empathetic">Empathetic</option>
+                  <option value="bold">Bold</option>
+                  <option value="sophisticated">Sophisticated</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Core Values</label>
+                <div className="space-y-2">
+                  {brandData.core_values.map((value, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => {
+                          const newValues = [...brandData.core_values];
+                          newValues[index] = e.target.value;
+                          setBrandData(prev => ({ ...prev, core_values: newValues }));
+                        }}
+                        className="flex-1 px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
+                        placeholder={`Core value ${index + 1}`}
+                      />
+                      {brandData.core_values.length > 1 && (
+                        <button
+                          onClick={() => {
+                            const newValues = brandData.core_values.filter((_, i) => i !== index);
+                            setBrandData(prev => ({ ...prev, core_values: newValues }));
+                          }}
+                          className="px-3 py-3 text-red-500 hover:text-red-400"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setBrandData(prev => ({ ...prev, core_values: [...prev.core_values, ''] }))}
+                    className="text-primary hover:text-primary/80 text-sm"
+                  >
+                    + Add Core Value
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Primary Color</label>
                   <input
                     type="color"
                     value={brandData.primary_color}
                     onChange={(e) => setBrandData(prev => ({ ...prev, primary_color: e.target.value }))}
-                    className="w-12 h-12 bg-dark-lighter border border-dark-border rounded-lg"
+                    className="w-full h-12 bg-dark-lighter border border-dark-border rounded-lg cursor-pointer"
                   />
-                  <span className="text-white/60 text-sm">{brandData.primary_color}</span>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">
-                  Secondary Color
-                </label>
-                <div className="flex items-center gap-2">
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Secondary Color</label>
                   <input
                     type="color"
                     value={brandData.secondary_color}
                     onChange={(e) => setBrandData(prev => ({ ...prev, secondary_color: e.target.value }))}
-                    className="w-12 h-12 bg-dark-lighter border border-dark-border rounded-lg"
+                    className="w-full h-12 bg-dark-lighter border border-dark-border rounded-lg cursor-pointer"
                   />
-                  <span className="text-white/60 text-sm">{brandData.secondary_color}</span>
                 </div>
               </div>
             </div>

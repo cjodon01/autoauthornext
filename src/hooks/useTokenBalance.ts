@@ -27,6 +27,33 @@ export const useTokenBalance = () => {
           .single();
 
         if (profileError) {
+          // If profile doesn't exist, create one
+          if (profileError.code === 'PGRST116') {
+            console.log('Profile not found, creating new profile for user');
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert([
+                {
+                  id: session.user.id,
+                  email: session.user.email,
+                  token_balance: 1000, // Default token balance
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              ])
+              .select('token_balance')
+              .single();
+
+            if (createError) {
+              console.error('Error creating profile:', createError);
+              setTokenBalance(1000); // Use default on error
+            } else {
+              setTokenBalance(newProfile.token_balance || 1000);
+            }
+            setLoading(false);
+            return;
+          }
+
           // If tokens column doesn't exist or table doesn't exist, use default
           if (profileError.code === '42703' || profileError.code === '42P01') {
             console.warn('Tokens column not found in profiles table, using default balance');

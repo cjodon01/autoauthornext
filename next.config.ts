@@ -33,6 +33,14 @@ const nextConfig: NextConfig = {
 
   // Webpack optimization
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Exclude edge functions from Next.js build
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+    
     // Optimize build performance
     if (!dev) {
       config.cache = {
