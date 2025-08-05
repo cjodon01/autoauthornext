@@ -53,15 +53,25 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    // Protected routes
+    // Protected routes that require authentication
     const protectedPaths = ['/dashboard', '/brand-management', '/campaign-management', '/analytics', '/pending-posts']
     const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
+
+    // Tools route - allow access but check for user
+    const isToolsPath = request.nextUrl.pathname.startsWith('/tools')
 
     if (isProtectedPath && !user) {
       // Redirect to home page with a login prompt
       const redirectUrl = new URL('/', request.url)
       redirectUrl.searchParams.set('login', 'true')
       return NextResponse.redirect(redirectUrl)
+    }
+
+    // For tools route, allow access but don't redirect if no user
+    // The tools page will handle showing login prompt if needed
+    if (isToolsPath && !user) {
+      // Allow access to tools, but the page will show login prompt
+      return supabaseResponse
     }
 
     // If user is logged in and trying to access auth pages, redirect to dashboard

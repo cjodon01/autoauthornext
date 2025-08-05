@@ -24,11 +24,23 @@ const nextConfig: NextConfig = {
     formats: ["image/webp", "image/avif"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Allow external images for Vercel deployment
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
 
   // Performance optimizations
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
+  },
+
+  // Runtime configuration for Vercel
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 
   // Webpack optimization
@@ -48,6 +60,16 @@ const nextConfig: NextConfig = {
         buildDependencies: {
           config: [__filename],
         },
+      };
+    }
+
+    // Fix for Vercel deployment issues
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
       };
     }
     
@@ -76,6 +98,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // Output configuration for better Vercel compatibility
+  output: 'standalone',
 };
 
 export default withBundleAnalyzer(nextConfig);
