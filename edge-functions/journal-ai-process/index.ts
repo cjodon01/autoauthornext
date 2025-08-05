@@ -1,104 +1,144 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+// Function to extract JSON from markdown code blocks
+function extractJsonFromMarkdown(text: string): string {
+  // Remove markdown code block markers
+  let cleaned = text.trim();
+  
+  // Remove ```json and ``` markers
+  cleaned = cleaned.replace(/^```json\s*/i, '');
+  cleaned = cleaned.replace(/^```\s*/i, '');
+  cleaned = cleaned.replace(/\s*```$/i, '');
+  
+  return cleaned.trim();
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    // Get the request body
-    const { entry_id, user_id, ai_model_name = 'gpt-4o-mini' } = await req.json();
+    // Parse request body
+    const requestBody = await req.json();
+    const { entry_id } = requestBody;
 
-    if (!entry_id || !user_id) {
+    // Validate required fields
+    if (!entry_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters: entry_id and user_id' }),
+        JSON.stringify({ error: 'Entry ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get OpenAI API key
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseKey) {
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'Supabase configuration missing' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch the journal entry
     const { data: entry, error: entryError } = await supabase
       .from('journal_entries')
       .select('*')
       .eq('id', entry_id)
-      .eq('user_id', user_id)
       .single();
 
     if (entryError || !entry) {
       return new Response(
-        JSON.stringify({ error: 'Journal entry not found' }),
+        JSON.stringify({ error: 'Journal entry not found', details: entryError?.message }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!entry.content_text) {
-      return new Response(
-        JSON.stringify({ error: 'Journal entry has no content to process' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Update processing status
+    // Update processing status to processing
     await supabase
       .from('journal_entries')
       .update({ ai_processing_status: 'processing' })
       .eq('id', entry_id);
 
-    // Generate AI content using OpenAI
-    const prompt = `You are an expert content creator and social media strategist. 
+    // Get OpenAI API key
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      // Update processing status to failed
+      await supabase
+        .from('journal_entries')
+        .update({ ai_processing_status: 'failed' })
+        .eq('id', entry_id);
 
-Based on this journal entry, create three different pieces of content:
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-1. A concise summary (2-3 sentences) that captures the key insights
-2. A social media post (optimized for engagement, include relevant hashtags)
-3. A blog post excerpt (more detailed, professional tone)
+    // Build prompt for AI processing
+    const prompt = `
+You are an expert content creator and social media strategist. Analyze the following journal entry and create three different pieces of content:
 
-Journal Entry Content:
-${entry.content_text}
+Journal Entry:
+${entry.content}
 
-Please respond with a JSON object in this exact format:
+Create the following content types:
+
+1. Summary: A concise 2-3 sentence summary of the key points
+2. Social Post: An engaging social media post (1-2 paragraphs) that captures the essence of the entry
+3. Blog Post: A longer, more detailed blog post version (3-4 paragraphs) that expands on the themes
+
+Return your response as a JSON object with these exact keys:
 {
-  "summary": "Brief summary here",
-  "social_post": "Social media post content here",
-  "blog_post": "Blog post excerpt here"
-}`;
+  "summary": "concise summary text",
+  "social_post": "social media post content",
+  "blog_post": "blog post content"
+}
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+Make the content engaging, authentic, and true to the original entry's tone and message.
+`.trim();
+
+    // Call OpenAI API
+    console.log(`Processing journal entry: ${entry_id}`);
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Authorization": `Bearer ${openaiApiKey}`,
-        "Content-Type": "application/json",
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: ai_model_name,
+        model: 'gpt-4o-mini',
         messages: [
           {
-            role: "system",
-            content: "You are a professional content creator. Always respond with valid JSON."
+            role: 'system',
+            content: 'You are an expert content creator who analyzes journal entries and creates engaging content. Always respond with valid JSON.'
           },
           {
-            role: "user",
+            role: 'user',
             content: prompt
           }
         ],
@@ -139,12 +179,21 @@ Please respond with a JSON object in this exact format:
       );
     }
 
-    // Parse the AI response
+    // Parse the AI response - handle both pure JSON and markdown-wrapped JSON
     let parsedContent;
     try {
-      parsedContent = JSON.parse(aiContent);
+      let jsonToParse = aiContent;
+      
+      // Check if response is wrapped in markdown code blocks
+      if (aiContent.includes('```')) {
+        jsonToParse = extractJsonFromMarkdown(aiContent);
+        console.log("Extracted JSON from markdown code blocks");
+      }
+      
+      parsedContent = JSON.parse(jsonToParse);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
+      console.error('Raw AI response:', aiContent);
       
       // Update processing status to failed
       await supabase

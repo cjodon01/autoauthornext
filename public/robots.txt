@@ -1,0 +1,47 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Blog content
+Allow: /blog
+Allow: /blog/*
+
+# Important pages
+Allow: /about
+Allow: /privacy
+Allow: /terms
+
+# Disallow private/admin areas
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /pending-posts
+Disallow: /brand-management
+Disallow: /campaign-management
+Disallow: /analytics
+Disallow: /tools/debug
+
+# Disallow API endpoints
+Disallow: /api/*
+
+# Allow search engines to access sitemap
+Sitemap: https://autoauthor.ai/sitemap.xml
+
+# Crawl delay (optional - adjust based on server capacity)
+Crawl-delay: 1
+
+# Specific instructions for major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: facebookexternalhit
+Allow: /blog
+Allow: /blog/*
+
+User-agent: Twitterbot
+Allow: /blog
+Allow: /blog/*

@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Function to extract JSON from markdown code blocks
+function extractJsonFromMarkdown(text: string): string {
+  // Remove markdown code block markers
+  let cleaned = text.trim();
+  
+  // Remove ```json and ``` markers
+  cleaned = cleaned.replace(/^```json\s*/i, '');
+  cleaned = cleaned.replace(/^```\s*/i, '');
+  cleaned = cleaned.replace(/\s*```$/i, '');
+  
+  return cleaned.trim();
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -113,10 +126,18 @@ Make the text overlay funny, relevant, and meme-worthy.
       )
     }
 
-    // Parse AI response
+    // Parse AI response - handle both pure JSON and markdown-wrapped JSON
     let parsedResponse
     try {
-      parsedResponse = JSON.parse(aiResponse)
+      let jsonToParse = aiResponse;
+      
+      // Check if response is wrapped in markdown code blocks
+      if (aiResponse.includes('```')) {
+        jsonToParse = extractJsonFromMarkdown(aiResponse);
+        console.log("Extracted JSON from markdown code blocks");
+      }
+      
+      parsedResponse = JSON.parse(jsonToParse)
     } catch (e) {
       console.error('Failed to parse AI response:', aiResponse)
       return new Response(

@@ -26,6 +26,7 @@ import TokenCostDisplay from '../../../components/ui/TokenCostDisplay';
 import PlatformPostPreview from '../../../components/social/PlatformPostPreview';
 import { useAiModels } from '../../../hooks/useAiModels';
 import AuthenticatedNavbar from '../../../components/layout/AuthenticatedNavbar';
+import Footer from '../../../components/layout/Footer';
 import ParticleBackground from '../../../components/ui/ParticleBackground';
 import type { Database } from '../../../lib/supabase/types';
 
@@ -576,6 +577,9 @@ const PostNowClient: React.FC = () => {
           </div>
         </motion.div>
       </main>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };

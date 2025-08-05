@@ -36,6 +36,7 @@ import OnboardingWizard from '../../components/onboarding/OnboardingWizard';
 import SimpleCampaignCreator from '../../components/campaigns/SimpleCampaignCreator';
 import TokenBalance from '../../components/ui/TokenBalance';
 import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import Footer from '../../components/layout/Footer';
 
 const DashboardClient: React.FC = () => {
   const { user, session, loading, signOut } = useAuth();
@@ -613,6 +614,9 @@ const DashboardClient: React.FC = () => {
         isOpen={showSinglePostModal}
         onClose={() => setShowSinglePostModal(false)}
       />
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };

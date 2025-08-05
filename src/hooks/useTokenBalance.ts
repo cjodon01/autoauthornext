@@ -23,7 +23,7 @@ export const useTokenBalance = () => {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('token_balance')
-          .eq('id', session.user.id)
+          .eq('user_id', session.user.id)
           .single();
 
         if (profileError) {
@@ -34,9 +34,10 @@ export const useTokenBalance = () => {
               .from('profiles')
               .insert([
                 {
-                  id: session.user.id,
+                  user_id: session.user.id,
                   email: session.user.email,
                   token_balance: 1000, // Default token balance
+                  brand_name: 'Default Brand', // Required field
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 }

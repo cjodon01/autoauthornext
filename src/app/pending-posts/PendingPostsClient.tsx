@@ -38,6 +38,7 @@ interface DatabasePost {
   campaign_id?: string;
   created_at: string;
   updated_at?: string;
+  metadata?: any; // For storing meme editing data
   // Enriched data from joins
   campaigns?: {
     id: string;
@@ -65,6 +66,11 @@ interface ScheduledPost {
   retryCount: number;
   createdAt: string;
   updatedAt: string;
+  // Enhanced fields for meme editing
+  selectedImage?: string | null;
+  textOverlays?: any[];
+  imagePosition?: any;
+  capturedImage?: string | null;
 }
 
 interface FilterOptions {
@@ -95,20 +101,31 @@ const PendingPostsClient: React.FC = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   
   // Convert database post to UI post format
-  const convertToScheduledPost = (dbPost: DatabasePost): ScheduledPost => ({
-    id: dbPost.id,
-    content: dbPost.post_content,
-    platform: dbPost.platforms?.[0] || 'unknown',
-    scheduledAt: dbPost.post_date || '',
-    status: dbPost.isCompleted ? 'published' : (dbPost.approved ? 'scheduled' : 'failed'),
-    brandId: dbPost.campaign_id || '',
-    brandName: dbPost.campaigns?.campaign_name || 'No Campaign',
-    campaignId: dbPost.campaign_id,
-    campaignName: dbPost.campaigns?.campaign_name,
-    retryCount: 0,
-    createdAt: dbPost.created_at,
-    updatedAt: dbPost.updated_at || dbPost.created_at
-  });
+  const convertToScheduledPost = (dbPost: DatabasePost): ScheduledPost => {
+    // Extract meme editing data from metadata
+    const metadata = dbPost.metadata || {};
+    
+    return {
+      id: dbPost.id,
+      content: dbPost.post_content,
+      platform: dbPost.platforms?.[0] || 'unknown',
+      scheduledAt: dbPost.post_date || '',
+      status: dbPost.isCompleted ? 'published' : (dbPost.approved ? 'scheduled' : 'failed'),
+      brandId: dbPost.campaign_id || '',
+      brandName: dbPost.campaigns?.campaign_name || 'No Campaign',
+      mediaUrls: metadata.mediaUrls || [],
+      campaignId: dbPost.campaign_id,
+      campaignName: dbPost.campaigns?.campaign_name,
+      retryCount: 0,
+      createdAt: dbPost.created_at,
+      updatedAt: dbPost.updated_at || dbPost.created_at,
+      // Enhanced fields for meme editing
+      selectedImage: metadata.selectedImage || null,
+      textOverlays: metadata.textOverlays || [],
+      imagePosition: metadata.imagePosition || { x: 0, y: 0, scale: 1 },
+      capturedImage: metadata.capturedImage || null
+    };
+  };
   
   // Fetch campaigns for filter dropdown
   const fetchCampaigns = async () => {
@@ -357,7 +374,15 @@ const PendingPostsClient: React.FC = () => {
         .update({
           post_content: updatedPost.content,
           post_date: updatedPost.scheduledAt,
-          approved: updatedPost.status === 'scheduled' || updatedPost.status === 'published'
+          approved: updatedPost.status === 'scheduled' || updatedPost.status === 'published',
+          // Save meme editing data as metadata
+          metadata: {
+            selectedImage: updatedPost.selectedImage,
+            textOverlays: updatedPost.textOverlays,
+            imagePosition: updatedPost.imagePosition,
+            capturedImage: updatedPost.capturedImage,
+            mediaUrls: updatedPost.mediaUrls
+          }
         })
         .eq('id', updatedPost.id);
         

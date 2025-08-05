@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth/provider';
 import { createClient } from '../../lib/supabase/client';
 import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
+import Footer from '../../components/layout/Footer';
 import ParticleBackground from '../../components/ui/ParticleBackground';
 import ToolsDashboard from '../../components/tools/ToolsDashboard';
 
@@ -390,6 +391,9 @@ const ToolsClient: React.FC = () => {
           )}
         </motion.div>
       </main>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };

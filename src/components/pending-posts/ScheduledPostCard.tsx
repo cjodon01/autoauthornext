@@ -15,7 +15,8 @@ import {
   Calendar,
   Tag,
   Image,
-  ExternalLink
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 import { format, isPast, isToday, isTomorrow } from 'date-fns';
 
@@ -34,6 +35,11 @@ interface ScheduledPost {
   retryCount: number;
   createdAt: string;
   updatedAt: string;
+  // Enhanced fields for meme editing
+  selectedImage?: string | null;
+  textOverlays?: any[];
+  imagePosition?: any;
+  capturedImage?: string | null;
 }
 
 interface ScheduledPostCardProps {
@@ -196,6 +202,14 @@ const ScheduledPostCard: React.FC<ScheduledPostCardProps> = ({
               <div className="flex items-center gap-1 mt-2 text-white/60 text-xs">
                 <Image className="h-3 w-3" />
                 <span>{post.mediaUrls.length} media file{post.mediaUrls.length > 1 ? 's' : ''}</span>
+              </div>
+            )}
+            
+            {/* Meme editing indicator */}
+            {(post.selectedImage || post.textOverlays?.length > 0 || post.capturedImage) && (
+              <div className="flex items-center gap-1 mt-2 text-primary text-xs">
+                <Sparkles className="h-3 w-3" />
+                <span>Enhanced with meme editor</span>
               </div>
             )}
           </div>

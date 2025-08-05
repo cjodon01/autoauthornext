@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../lib/auth/provider';
 import { createClient } from '../../../lib/supabase/client';
 import AuthenticatedNavbar from '../../../components/layout/AuthenticatedNavbar';
+import Footer from '../../../components/layout/Footer';
 import ParticleBackground from '../../../components/ui/ParticleBackground';
 import TokenCostDisplay from '../../../components/ui/TokenCostDisplay';
 
@@ -96,13 +97,29 @@ const fontFamilies = [
 const colors = [
   '#FFFFFF', '#000000', '#FF0000', '#00FF00', '#0000FF', 
   '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+  '#FF1744', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5',
+  '#2196F3', '#03DAC6', '#00BCD4', '#009688', '#4CAF50',
+  '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800',
+  '#FF5722', '#795548', '#9E9E9E', '#607D8B', '#F44336',
+  '#E57373', '#F06292', '#BA68C8', '#9575CD', '#7986CB',
+  '#64B5F6', '#4FC3F7', '#4DD0E1', '#4DB6AC', '#81C784',
+  '#AED581', '#DCE775', '#FFF176', '#FFD54F', '#FFB74D',
+  '#FF8A65', '#A1887F', '#E0E0E0', '#90A4AE', '#FFCDD2'
 ];
 
 const backgroundColors = [
   'transparent', '#FFFFFF', '#000000', '#FF0000', '#00FF00', 
   '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', 
-  '#800080', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'
+  '#800080', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+  '#FF1744', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5',
+  '#2196F3', '#03DAC6', '#00BCD4', '#009688', '#4CAF50',
+  '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800',
+  '#FF5722', '#795548', '#9E9E9E', '#607D8B', '#F44336',
+  '#E57373', '#F06292', '#BA68C8', '#9575CD', '#7986CB',
+  '#64B5F6', '#4FC3F7', '#4DD0E1', '#4DB6AC', '#81C784',
+  '#AED581', '#DCE775', '#FFF176', '#FFD54F', '#FFB74D',
+  '#FF8A65', '#A1887F', '#E0E0E0', '#90A4AE', '#FFCDD2'
 ];
 
 const MemeCreatorClient: React.FC = () => {
@@ -464,51 +481,115 @@ const MemeCreatorClient: React.FC = () => {
   };
 
   const handleSaveToLibrary = async () => {
-    if (!capturedImage) {
-      toast.error('No meme to save');
+    if (!capturedImage || !user) {
+      toast.error('Please capture the meme first and ensure you are logged in');
       return;
     }
 
     try {
-      // Convert data URL to blob
+      // Upload captured image to Supabase storage
       const response = await fetch(capturedImage);
       const blob = await response.blob();
+      const fileName = `meme-${Date.now()}.png`;
       
-      // Upload to Supabase storage
-      const fileName = `memes/${user?.id}/${Date.now()}.png`;
-      const { data, error } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('user-media')
-        .upload(fileName, blob, {
-          contentType: 'image/png',
-          cacheControl: '3600'
-        });
-
-      if (error) throw error;
-
+        .upload(fileName, blob);
+      
+      if (uploadError) throw uploadError;
+      
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('user-media')
         .getPublicUrl(fileName);
-
-      // Save to database
-      const { error: dbError } = await supabase
-        .from('user_media')
+      
+      // Get user's brand info
+      const { data: brands, error: brandsError } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+      
+      if (brandsError) throw brandsError;
+      
+      const brandId = brands?.[0]?.id;
+      
+      // Save to generated_media_posts table (like original system)
+      const { error: mediaError } = await supabase
+        .from('generated_media_posts')
         .insert({
-          user_id: user?.id,
-          file_name: fileName,
-          file_url: publicUrl,
-          media_type: 'image',
-          title: `Meme ${new Date().toLocaleDateString()}`,
-          description: 'Generated meme',
-          tags: ['meme', 'generated']
+          brand_id: brandId,
+          prompt: 'Custom Meme',
+          content_type: 'meme',
+          generated_image_url: publicUrl,
+          image_description: 'Custom created meme',
+          overlay_text: textOverlays?.[0]?.text || null,
+          overlay_options: JSON.stringify(textOverlays)
         });
-
-      if (dbError) throw dbError;
-
-      toast.success('Saved to your media library!');
+      
+      if (mediaError) throw mediaError;
+      
+      toast.success('Meme saved to library!');
     } catch (error) {
-      console.error('Error saving to library:', error);
-      toast.error('Failed to save to library');
+      console.error('Error saving meme:', error);
+      toast.error('Failed to save meme');
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!capturedImage || !user) {
+      toast.error('Please capture the meme first and ensure you are logged in');
+      return;
+    }
+    
+    try {
+      // Upload captured image to Supabase storage
+      const response = await fetch(capturedImage);
+      const blob = await response.blob();
+      const fileName = `meme-${Date.now()}.png`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('user-media')
+        .upload(fileName, blob);
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('user-media')
+        .getPublicUrl(fileName);
+      
+      // Get user's brand info
+      const { data: brands, error: brandsError } = await supabase
+        .from('brands')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+      
+      if (brandsError) throw brandsError;
+      
+      const brandId = brands?.[0]?.id;
+      
+      // Save to generated_media_posts table (like original system)
+      const { error: mediaError } = await supabase
+        .from('generated_media_posts')
+        .insert({
+          brand_id: brandId,
+          prompt: 'Custom Meme',
+          content_type: 'meme',
+          generated_image_url: publicUrl,
+          image_description: 'Custom created meme',
+          overlay_text: textOverlays?.[0]?.text || null,
+          overlay_options: JSON.stringify(textOverlays)
+        });
+      
+      if (mediaError) throw mediaError;
+      
+      toast.success('Meme saved to library!');
+      
+    } catch (error) {
+      console.error('Error saving meme:', error);
+      toast.error('Failed to save meme');
     }
   };
 
@@ -588,58 +669,273 @@ const MemeCreatorClient: React.FC = () => {
             <TokenCostDisplay />
           </div>
 
+          {/* Main Toolbar */}
+          <div className="bg-dark-card border border-dark-border rounded-xl p-4 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Left Section - Image Controls */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-primary" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search images..."
+                    className="bg-dark-lighter border border-dark-border rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-40"
+                    onKeyPress={(e) => e.key === 'Enter' && handleImageSearch()}
+                  />
+                  <button
+                    onClick={handleImageSearch}
+                    disabled={isSearching}
+                    className="btn btn-primary btn-sm disabled:opacity-50"
+                  >
+                    {isSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn btn-secondary btn-sm inline-flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Center Section - Text Controls */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={addTextOverlay}
+                  className="btn btn-primary btn-sm inline-flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Text
+                </button>
+                
+                <button
+                  onClick={resetCanvas}
+                  className="btn btn-secondary btn-sm inline-flex items-center gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </button>
+              </div>
+
+              {/* Right Section - Actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCaptureMeme}
+                  disabled={!selectedImage || textOverlays.length === 0 || isCapturing}
+                  className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  {isCapturing ? 'Capturing...' : 'Capture'}
+                </button>
+                
+                {capturedImage && (
+                  <>
+                    <button
+                      onClick={handleDownload}
+                      className="btn btn-secondary btn-sm inline-flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </button>
+                    <button
+                      onClick={handleSaveToLibrary}
+                      className="btn btn-secondary btn-sm inline-flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      Save
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Contextual Text Editing Toolbar - Appears when text is selected */}
+          {selectedOverlay && (() => {
+            const overlay = textOverlays.find(o => o.id === selectedOverlay);
+            if (!overlay) return null;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-dark-card border border-primary/50 rounded-xl p-4 mb-8"
+              >
+                <div className="flex flex-wrap items-center gap-6">
+                  {/* Text Input */}
+                  <div className="flex items-center gap-2">
+                    <Type className="h-4 w-4 text-secondary" />
+                    <input
+                      type="text"
+                      value={overlay.text}
+                      onChange={(e) => updateTextOverlay(overlay.id, { text: e.target.value })}
+                      className="bg-dark-lighter border border-dark-border rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-32"
+                      placeholder="Enter text..."
+                    />
+                  </div>
+
+                  {/* Font Family */}
+                  <select
+                    value={overlay.fontFamily}
+                    onChange={(e) => updateTextOverlay(overlay.id, { fontFamily: e.target.value })}
+                    className="bg-dark-lighter border border-dark-border rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font.value} value={font.value}>{font.name}</option>
+                    ))}
+                  </select>
+
+                  {/* Font Size */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white/60">{overlay.fontSize}px</span>
+                    <input
+                      type="range"
+                      min="12"
+                      max="120"
+                      value={overlay.fontSize}
+                      onChange={(e) => updateTextOverlay(overlay.id, { fontSize: parseInt(e.target.value) })}
+                      className="w-16"
+                    />
+                  </div>
+
+                  {/* Text Formatting */}
+                  <div className="flex items-center border border-dark-border rounded-lg">
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { isBold: !overlay.isBold })}
+                      className={`p-1.5 border-r border-dark-border ${overlay.isBold ? 'bg-primary text-white' : 'text-white/70 hover:text-white'}`}
+                    >
+                      <Bold className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { isItalic: !overlay.isItalic })}
+                      className={`p-1.5 border-r border-dark-border ${overlay.isItalic ? 'bg-primary text-white' : 'text-white/70 hover:text-white'}`}
+                    >
+                      <Italic className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { isUnderline: !overlay.isUnderline })}
+                      className={`p-1.5 ${overlay.isUnderline ? 'bg-primary text-white' : 'text-white/70 hover:text-white'}`}
+                    >
+                      <Underline className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  {/* Text Alignment */}
+                  <div className="flex items-center border border-dark-border rounded-lg">
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { textAlign: 'left' })}
+                      className={`p-1.5 border-r border-dark-border ${overlay.textAlign === 'left' ? 'bg-primary text-white' : 'text-white/70 hover:text-white'}`}
+                    >
+                      <AlignLeft className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { textAlign: 'center' })}
+                      className={`p-1.5 border-r border-dark-border ${overlay.textAlign === 'center' ? 'bg-primary text-white' : 'text-white/70 hover:text-white'}`}
+                    >
+                      <AlignCenter className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { textAlign: 'right' })}
+                      className={`p-1.5 ${overlay.textAlign === 'right' ? 'bg-primary text-white' : 'text-white/70 hover:text-white'}`}
+                    >
+                      <AlignRight className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  {/* Color Pickers - Simplified */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white/60">Colors:</span>
+                    {/* Text Color */}
+                    <div className="relative group">
+                      <button
+                        className="w-6 h-6 rounded border-2 border-white/30 hover:border-white/60"
+                        style={{ backgroundColor: overlay.color }}
+                        title="Text Color"
+                      />
+                      <div className="absolute top-8 left-0 hidden group-hover:block bg-dark-card border border-dark-border rounded-lg p-2 z-50">
+                        <div className="grid grid-cols-6 gap-1 w-32">
+                          {colors.slice(0, 12).map(color => (
+                            <button
+                              key={color}
+                              onClick={() => updateTextOverlay(overlay.id, { color })}
+                              className="w-4 h-4 rounded border border-dark-border"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Stroke Color */}
+                    <div className="relative group">
+                      <button
+                        className="w-6 h-6 rounded border-2 border-white/30 hover:border-white/60"
+                        style={{ backgroundColor: overlay.strokeColor }}
+                        title="Stroke Color"
+                      />
+                      <div className="absolute top-8 left-0 hidden group-hover:block bg-dark-card border border-dark-border rounded-lg p-2 z-50">
+                        <div className="grid grid-cols-6 gap-1 w-32">
+                          {colors.slice(0, 12).map(color => (
+                            <button
+                              key={color}
+                              onClick={() => updateTextOverlay(overlay.id, { strokeColor: color })}
+                              className="w-4 h-4 rounded border border-dark-border"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 ml-auto">
+                    <button
+                      onClick={() => updateTextOverlay(overlay.id, { isVisible: !overlay.isVisible })}
+                      className={`p-1.5 rounded ${overlay.isVisible ? 'text-white' : 'text-white/50'}`}
+                      title={overlay.isVisible ? 'Hide' : 'Show'}
+                    >
+                      {overlay.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => removeTextOverlay(overlay.id)}
+                      className="p-1.5 rounded text-red-400 hover:bg-red-500/20"
+                      title="Delete"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Panel - Image Search & Selection */}
+            {/* Left Panel - Find Images */}
             <div className="space-y-6">
-              {/* Image Search */}
+              {/* Image Search Results */}
               <div className="bg-dark-card border border-dark-border rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                   <Search className="h-5 w-5 text-primary" />
                   Find Images
                 </h2>
                 
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for images..."
-                      className="flex-1 bg-dark-lighter border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      onKeyPress={(e) => e.key === 'Enter' && handleImageSearch()}
-                    />
-                    <button
-                      onClick={handleImageSearch}
-                      disabled={isSearching}
-                      className="btn btn-primary disabled:opacity-50"
-                    >
-                      {isSearching ? 'Searching...' : 'Search'}
-                    </button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="btn btn-secondary btn-sm inline-flex items-center gap-2"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Upload
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                  </div>
-                </div>
-
                 {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="mt-4">
+                {searchResults.length > 0 ? (
+                  <div>
                     <h3 className="text-sm font-medium text-white/70 mb-2">Search Results</h3>
-                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
                       {searchResults.map((image) => (
                         <motion.div
                           key={image.id}
@@ -657,95 +953,89 @@ const MemeCreatorClient: React.FC = () => {
                           <img
                             src={image.thumbnail}
                             alt={image.alt}
-                            className="w-full h-20 object-cover"
+                            className="w-full h-24 object-cover"
                           />
                         </motion.div>
                       ))}
                     </div>
                   </div>
+                ) : (
+                  <div className="text-center py-8 text-white/60">
+                    <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Search for images or upload your own</p>
+                  </div>
                 )}
-              </div>
 
-              {/* Text Overlays */}
-              <div className="bg-dark-card border border-dark-border rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                {/* Text Overlays List */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Type className="h-5 w-5 text-secondary" />
                     Text Overlays
-                  </h2>
-                  <button
-                    onClick={addTextOverlay}
-                    className="btn btn-primary btn-sm inline-flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Text
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {textOverlays.map((overlay) => (
-                    <div
-                      key={overlay.id}
-                      className={`p-3 rounded-lg border transition-colors cursor-pointer ${
-                        selectedOverlay === overlay.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-dark-border bg-dark-lighter hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedOverlay(overlay.id)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-white truncate">
-                          {overlay.text}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateTextOverlay(overlay.id, { isVisible: !overlay.isVisible });
-                            }}
-                            className="p-1 rounded hover:bg-dark-border"
-                          >
-                            {overlay.isVisible ? (
-                              <Eye className="h-3 w-3 text-white" />
-                            ) : (
-                              <EyeOff className="h-3 w-3 text-white/50" />
-                            )}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeTextOverlay(overlay.id);
-                            }}
-                            className="p-1 rounded hover:bg-red-500/20"
-                          >
-                            <X className="h-3 w-3 text-red-400" />
-                          </button>
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {textOverlays.map((overlay) => (
+                      <div
+                        key={overlay.id}
+                        className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                          selectedOverlay === overlay.id
+                            ? 'border-primary bg-primary/10'
+                            : 'border-dark-border bg-dark-lighter hover:border-primary/50'
+                        }`}
+                        onClick={() => setSelectedOverlay(overlay.id)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-white truncate">
+                            {overlay.text}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateTextOverlay(overlay.id, { isVisible: !overlay.isVisible });
+                              }}
+                              className="p-1 rounded hover:bg-dark-border"
+                            >
+                              {overlay.isVisible ? (
+                                <Eye className="h-3 w-3 text-white" />
+                              ) : (
+                                <EyeOff className="h-3 w-3 text-white/50" />
+                              )}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeTextOverlay(overlay.id);
+                              }}
+                              className="p-1 rounded hover:bg-red-500/20"
+                            >
+                              <X className="h-3 w-3 text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-white/60">
+                          {overlay.fontSize}px • {fontFamilies.find(f => f.value === overlay.fontFamily)?.name || overlay.fontFamily}
                         </div>
                       </div>
-                      <div className="text-xs text-white/60">
-                        {overlay.fontSize}px • {fontFamilies.find(f => f.value === overlay.fontFamily)?.name || overlay.fontFamily}
+                    ))}
+                    
+                    {textOverlays.length === 0 && (
+                      <div className="text-center py-4 text-white/60">
+                        <Type className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No text overlays yet</p>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Center Panel - Canvas */}
             <div className="bg-dark-card border border-dark-border rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-primary" />
-                  Canvas
-                </h2>
-                <button
-                  onClick={resetCanvas}
-                  className="btn btn-secondary btn-sm inline-flex items-center gap-2"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </button>
-              </div>
+              <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                Canvas
+              </h2>
 
               <div className="relative bg-dark-lighter rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
                 {selectedImage ? (
@@ -835,53 +1125,78 @@ const MemeCreatorClient: React.FC = () => {
                         onClick={() => setImagePosition({ x: 0, y: 0, scale: 1 })}
                         className="btn btn-secondary btn-xs"
                       >
-                        Reset
+                        Reset Position
                       </button>
                     </div>
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Action Buttons */}
-              <div className="mt-4 space-y-2">
-                <button
-                  onClick={handleCaptureMeme}
-                  disabled={!selectedImage || textOverlays.length === 0 || isCapturing}
-                  className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                  {isCapturing ? 'Capturing...' : 'Capture Meme'}
-                </button>
-                
-                {capturedImage && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleDownload}
-                      className="flex-1 btn btn-secondary btn-sm inline-flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download
-                    </button>
+            {/* Right Panel - Your Meme & Text Properties */}
+            <div className="space-y-6">
+              {/* Your Meme */}
+              {capturedImage ? (
+                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                  <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5 text-primary" />
+                    Your Meme
+                  </h2>
+
+                  <div className="space-y-4">
+                    <img
+                      src={capturedImage}
+                      alt="Generated meme"
+                      className="w-full rounded-lg"
+                    />
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDownload}
+                        className="flex-1 btn btn-primary btn-sm inline-flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download
+                      </button>
+                      <button
+                        onClick={handleSaveToLibrary}
+                        className="flex-1 btn btn-primary btn-sm inline-flex items-center gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save
+                      </button>
+                    </div>
+                    
                     <button
                       onClick={handleShare}
-                      className="flex-1 btn btn-secondary btn-sm inline-flex items-center gap-2"
+                      className="w-full btn btn-secondary btn-sm inline-flex items-center gap-2"
                     >
                       <Share2 className="h-4 w-4" />
                       Share
                     </button>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              ) : (
+                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+                  <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5 text-primary" />
+                    Your Meme
+                  </h2>
+                  
+                  <div className="text-center py-12 text-white/60">
+                    <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg mb-2">No meme captured yet</p>
+                    <p className="text-sm">Add an image and text, then click capture</p>
+                  </div>
+                </div>
+              )}
 
-            {/* Right Panel - Text Editor & Captured Image */}
-            <div className="space-y-6">
-              {/* Text Properties */}
+              {/* Advanced Text Properties */}
               {selectedOverlay && (
                 <div className="bg-dark-card border border-dark-border rounded-xl p-6">
                   <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                     <Edit3 className="h-5 w-5 text-secondary" />
-                    Text Properties
+                    Advanced Properties
                   </h2>
 
                   {(() => {
@@ -890,35 +1205,11 @@ const MemeCreatorClient: React.FC = () => {
 
                     return (
                       <div className="space-y-4">
-                        {/* Text Content */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Text
-                          </label>
-                          <textarea
-                            value={overlay.text}
-                            onChange={(e) => updateTextOverlay(overlay.id, { text: e.target.value })}
-                            className="w-full bg-dark-lighter border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 h-20"
-                            placeholder="Enter your text..."
-                          />
-                        </div>
+                        <p className="text-sm text-white/60 mb-4">
+                          Use the toolbar above for basic editing. Advanced controls below.
+                        </p>
 
-                        {/* Font Size */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Font Size: {overlay.fontSize}px
-                          </label>
-                          <input
-                            type="range"
-                            min="12"
-                            max="120"
-                            value={overlay.fontSize}
-                            onChange={(e) => updateTextOverlay(overlay.id, { fontSize: parseInt(e.target.value) })}
-                            className="w-full"
-                          />
-                        </div>
-
-                        {/* Text Box Size */}
+                        {/* Text Box Dimensions */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-white/70 mb-2">
@@ -948,22 +1239,6 @@ const MemeCreatorClient: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Font Family */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Font Family
-                          </label>
-                          <select
-                            value={overlay.fontFamily}
-                            onChange={(e) => updateTextOverlay(overlay.id, { fontFamily: e.target.value })}
-                            className="w-full bg-dark-lighter border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          >
-                            {fontFamilies.map(font => (
-                              <option key={font.value} value={font.value}>{font.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
                         {/* Rotation */}
                         <div>
                           <label className="block text-sm font-medium text-white/70 mb-2">
@@ -979,27 +1254,19 @@ const MemeCreatorClient: React.FC = () => {
                           />
                         </div>
 
-                        {/* Background Color */}
+                        {/* Stroke Width */}
                         <div>
                           <label className="block text-sm font-medium text-white/70 mb-2">
-                            Background Color
+                            Stroke Width: {overlay.strokeWidth}px
                           </label>
-                          <div className="grid grid-cols-4 gap-2">
-                            {backgroundColors.map(color => (
-                              <button
-                                key={color}
-                                onClick={() => updateTextOverlay(overlay.id, { backgroundColor: color })}
-                                className={`w-8 h-8 rounded border-2 transition-colors ${
-                                  overlay.backgroundColor === color ? 'border-white' : 'border-dark-border'
-                                }`}
-                                style={{ 
-                                  backgroundColor: color === 'transparent' ? 'rgba(0,0,0,0.3)' : color,
-                                  backgroundImage: color === 'transparent' ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)' : 'none',
-                                  backgroundSize: '4px 4px'
-                                }}
-                              />
-                            ))}
-                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            value={overlay.strokeWidth}
+                            onChange={(e) => updateTextOverlay(overlay.id, { strokeWidth: parseInt(e.target.value) })}
+                            className="w-full"
+                          />
                         </div>
 
                         {/* Background Opacity */}
@@ -1018,110 +1285,34 @@ const MemeCreatorClient: React.FC = () => {
                           />
                         </div>
 
-                        {/* Text Color */}
+                        {/* Position Fine-tuning */}
                         <div>
                           <label className="block text-sm font-medium text-white/70 mb-2">
-                            Text Color
+                            Position Fine-tuning
                           </label>
-                          <div className="grid grid-cols-5 gap-2">
-                            {colors.map(color => (
-                              <button
-                                key={color}
-                                onClick={() => updateTextOverlay(overlay.id, { color })}
-                                className={`w-8 h-8 rounded border-2 transition-colors ${
-                                  overlay.color === color ? 'border-white' : 'border-dark-border'
-                                }`}
-                                style={{ backgroundColor: color }}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <span className="text-xs text-white/60">X: {overlay.x}px</span>
+                              <input
+                                type="range"
+                                min="0"
+                                max="800"
+                                value={overlay.x}
+                                onChange={(e) => updateTextOverlay(overlay.id, { x: parseInt(e.target.value) })}
+                                className="w-full"
                               />
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Stroke Color */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Stroke Color
-                          </label>
-                          <div className="grid grid-cols-5 gap-2">
-                            {colors.map(color => (
-                              <button
-                                key={color}
-                                onClick={() => updateTextOverlay(overlay.id, { strokeColor: color })}
-                                className={`w-8 h-8 rounded border-2 transition-colors ${
-                                  overlay.strokeColor === color ? 'border-white' : 'border-dark-border'
-                                }`}
-                                style={{ backgroundColor: color }}
+                            </div>
+                            <div>
+                              <span className="text-xs text-white/60">Y: {overlay.y}px</span>
+                              <input
+                                type="range"
+                                min="0"
+                                max="600"
+                                value={overlay.y}
+                                onChange={(e) => updateTextOverlay(overlay.id, { y: parseInt(e.target.value) })}
+                                className="w-full"
                               />
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Stroke Width */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Stroke Width: {overlay.strokeWidth}px
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="10"
-                            value={overlay.strokeWidth}
-                            onChange={(e) => updateTextOverlay(overlay.id, { strokeWidth: parseInt(e.target.value) })}
-                            className="w-full"
-                          />
-                        </div>
-
-                        {/* Text Formatting */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Formatting
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => updateTextOverlay(overlay.id, { isBold: !overlay.isBold })}
-                              className={`p-2 rounded ${overlay.isBold ? 'bg-primary text-white' : 'bg-dark-lighter text-white/70'}`}
-                            >
-                              <Bold className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => updateTextOverlay(overlay.id, { isItalic: !overlay.isItalic })}
-                              className={`p-2 rounded ${overlay.isItalic ? 'bg-primary text-white' : 'bg-dark-lighter text-white/70'}`}
-                            >
-                              <Italic className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => updateTextOverlay(overlay.id, { isUnderline: !overlay.isUnderline })}
-                              className={`p-2 rounded ${overlay.isUnderline ? 'bg-primary text-white' : 'bg-dark-lighter text-white/70'}`}
-                            >
-                              <Underline className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Text Alignment */}
-                        <div>
-                          <label className="block text-sm font-medium text-white/70 mb-2">
-                            Alignment
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => updateTextOverlay(overlay.id, { textAlign: 'left' })}
-                              className={`p-2 rounded ${overlay.textAlign === 'left' ? 'bg-primary text-white' : 'bg-dark-lighter text-white/70'}`}
-                            >
-                              <AlignLeft className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => updateTextOverlay(overlay.id, { textAlign: 'center' })}
-                              className={`p-2 rounded ${overlay.textAlign === 'center' ? 'bg-primary text-white' : 'bg-dark-lighter text-white/70'}`}
-                            >
-                              <AlignCenter className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => updateTextOverlay(overlay.id, { textAlign: 'right' })}
-                              className={`p-2 rounded ${overlay.textAlign === 'right' ? 'bg-primary text-white' : 'bg-dark-lighter text-white/70'}`}
-                            >
-                              <AlignRight className="h-4 w-4" />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1129,47 +1320,15 @@ const MemeCreatorClient: React.FC = () => {
                   })()}
                 </div>
               )}
-
-              {/* Captured Meme */}
-              {capturedImage && (
-                <div className="bg-dark-card border border-dark-border rounded-xl p-6">
-                  <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5 text-primary" />
-                    Your Meme
-                  </h2>
-
-                  <div className="space-y-4">
-                    <img
-                      src={capturedImage}
-                      alt="Generated meme"
-                      className="w-full rounded-lg"
-                    />
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleDownload}
-                        className="flex-1 btn btn-primary btn-sm inline-flex items-center gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                      </button>
-                      <button
-                        onClick={handleSaveToLibrary}
-                        className="flex-1 btn btn-secondary btn-sm inline-flex items-center gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </motion.div>
       </main>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
 
-export default MemeCreatorClient; 
+export default MemeCreatorClient;

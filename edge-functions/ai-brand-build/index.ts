@@ -8,6 +8,19 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Function to extract JSON from markdown code blocks
+function extractJsonFromMarkdown(text: string): string {
+  // Remove markdown code block markers
+  let cleaned = text.trim();
+  
+  // Remove ```json and ``` markers
+  cleaned = cleaned.replace(/^```json\s*/i, '');
+  cleaned = cleaned.replace(/^```\s*/i, '');
+  cleaned = cleaned.replace(/\s*```$/i, '');
+  
+  return cleaned.trim();
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -131,9 +144,17 @@ Ensure all text is concise, impactful, and aligns with the brand type and summar
       );
     }
 
-    // Parse the JSON response
+    // Parse the JSON response - handle both pure JSON and markdown-wrapped JSON
     try {
-      const brandProfile = JSON.parse(aiResponse);
+      let jsonToParse = aiResponse;
+      
+      // Check if response is wrapped in markdown code blocks
+      if (aiResponse.includes('```')) {
+        jsonToParse = extractJsonFromMarkdown(aiResponse);
+        console.log("Extracted JSON from markdown code blocks");
+      }
+      
+      const brandProfile = JSON.parse(jsonToParse);
       console.log("Successfully generated brand profile");
       
       return new Response(

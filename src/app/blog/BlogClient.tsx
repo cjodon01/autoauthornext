@@ -1,102 +1,138 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Calendar, Clock, User, ArrowRight, Search, Tag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, User, ArrowRight, Search, Tag, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Header from '../../components/layout/Header';
+import { useRouter } from 'next/navigation';
+import AuthenticatedNavbar from '../../components/layout/AuthenticatedNavbar';
 import Footer from '../../components/layout/Footer';
-import LoginModal from '../../components/auth/LoginModal';
 import { useAuth } from '../../lib/auth/provider';
+import { createClient } from '../../lib/supabase/client';
 
 interface BlogPost {
   id: string;
   title: string;
-  excerpt: string;
-  content: string;
-  author: string;
-  publishDate: string;
-  readTime: string;
-  tags: string[];
-  featured: boolean;
+  preview_text: string;
+  slug: string;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  status: 'published' | 'draft';
+  ai_provider: string | null;
+  ai_model: string | null;
+  embed_url: string | null;
+  content_html: string;
+  content_markdown: string | null;
 }
 
 export default function BlogClient() {
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTag, setSelectedTag] = useState('');
-  const { session } = useAuth();
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, session, signOut } = useAuth();
+  const router = useRouter();
+  const supabase = createClient();
 
-  const openModal = () => {
-    setShowLoginModal(true);
+  const handleLogout = async () => {
+    await signOut();
   };
 
-  const closeModal = () => {
-    setShowLoginModal(false);
-  };
+  useEffect(() => {
+    fetchBlogPosts();
+  }, []);
 
-  // Sample blog posts for SEO and demonstration
-  const blogPosts: BlogPost[] = [
-    {
-      id: '1',
-      title: 'The Future of AI-Powered Content Creation',
-      excerpt: 'Explore how artificial intelligence is revolutionizing the way we create, distribute, and optimize content across digital platforms.',
-      content: 'Full article content here...',
-      author: 'AutoAuthor Team',
-      publishDate: '2024-01-15',
-      readTime: '5 min read',
-      tags: ['AI', 'Content Creation', 'Future Trends'],
-      featured: true
-    },
-    {
-      id: '2',
-      title: 'Building Your Brand Voice with AI',
-      excerpt: 'Learn how to maintain consistency and authenticity in your brand voice while leveraging AI tools for content generation.',
-      content: 'Full article content here...',
-      author: 'Sarah Chen',
-      publishDate: '2024-01-10',
-      readTime: '7 min read',
-      tags: ['Brand Voice', 'AI', 'Marketing Strategy'],
-      featured: false
-    },
-    {
-      id: '3',
-      title: '10 Social Media Automation Best Practices',
-      excerpt: 'Discover the essential strategies for automating your social media while maintaining genuine engagement with your audience.',
-      content: 'Full article content here...',
-      author: 'Mike Rodriguez',
-      publishDate: '2024-01-05',
-      readTime: '6 min read',
-      tags: ['Social Media', 'Automation', 'Best Practices'],
-      featured: false
-    },
-    {
-      id: '4',
-      title: 'Measuring ROI in Content Marketing',
-      excerpt: 'A comprehensive guide to tracking and measuring the return on investment for your content marketing efforts.',
-      content: 'Full article content here...',
-      author: 'Lisa Park',
-      publishDate: '2024-01-01',
-      readTime: '8 min read',
-      tags: ['ROI', 'Content Marketing', 'Analytics'],
-      featured: false
+  const fetchBlogPosts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('status', 'published')
+        .eq('brand_id', '87e05ae7-8f83-4c89-afcc-450fc1572e2c')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching blog posts:', error);
+        setError('Failed to load blog posts');
+        return;
+      }
+
+      setBlogPosts(data || []);
+    } catch (err) {
+      console.error('Error in fetchBlogPosts:', err);
+      setError('Failed to load blog posts');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const allTags = Array.from(new Set(blogPosts.flatMap(post => post.tags)));
+  const filteredPosts = blogPosts.filter(post => 
+    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (post.preview_text && post.preview_text.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
-  const filteredPosts = blogPosts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         post.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTag = !selectedTag || post.tags.includes(selectedTag);
-    return matchesSearch && matchesTag;
-  });
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
-  const featuredPost = blogPosts.find(post => post.featured);
-  const regularPosts = filteredPosts.filter(post => !post.featured);
+  const calculateReadTime = (content: string) => {
+    const wordsPerMinute = 200;
+    const words = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return `${minutes} min read`;
+  };
+
+  const handlePostClick = (post: BlogPost) => {
+    router.push(`/blog/${post.slug}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-dark">
+        <AuthenticatedNavbar onLogout={handleLogout} userEmail={user?.email} />
+        <main className="container mx-auto px-4 py-12">
+          <div className="max-w-6xl mx-auto pt-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-white/70">Loading blog posts...</p>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-dark">
+        <AuthenticatedNavbar onLogout={handleLogout} userEmail={user?.email} />
+        <main className="container mx-auto px-4 py-12">
+          <div className="max-w-6xl mx-auto pt-20">
+            <div className="text-center">
+              <p className="text-red-400 mb-4">{error}</p>
+              <button
+                onClick={fetchBlogPosts}
+                className="btn btn-primary"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dark">
-      <Header openModal={openModal} session={session} />
+      <AuthenticatedNavbar onLogout={handleLogout} userEmail={user?.email} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
@@ -111,7 +147,7 @@ export default function BlogClient() {
             </p>
           </div>
 
-          {/* Search and Filter */}
+          {/* Search */}
           <div className="flex flex-col md:flex-row gap-4 mb-12">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/40" />
@@ -123,154 +159,105 @@ export default function BlogClient() {
                 className="w-full bg-dark-card border border-dark-border rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedTag('')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  !selectedTag
-                    ? 'bg-primary text-white'
-                    : 'bg-dark-card border border-dark-border text-white/70 hover:text-white'
-                }`}
-              >
-                All Topics
-              </button>
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => setSelectedTag(tag)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedTag === tag
-                      ? 'bg-primary text-white'
-                      : 'bg-dark-card border border-dark-border text-white/70 hover:text-white'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
           </div>
-
-          {/* Featured Post */}
-          {featuredPost && (!searchTerm && !selectedTag) && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-dark-card border border-dark-border rounded-xl p-8 mb-12"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-medium">
-                  Featured
-                </span>
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-4 hover:text-gradient transition-colors cursor-pointer">
-                {featuredPost.title}
-              </h2>
-              <p className="text-white/70 text-lg mb-6 leading-relaxed">
-                {featuredPost.excerpt}
-              </p>
-              <div className="flex flex-wrap items-center gap-6 text-white/60 text-sm mb-6">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span>{featuredPost.author}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>{new Date(featuredPost.publishDate).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>{featuredPost.readTime}</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 mb-6">
-                {featuredPost.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 bg-dark-lighter px-3 py-1 rounded-full text-sm text-white/70"
-                  >
-                    <Tag className="h-3 w-3" />
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <button className="inline-flex items-center gap-2 text-primary hover:text-primary-light transition-colors">
-                Read More
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </motion.div>
-          )}
 
           {/* Blog Posts Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {regularPosts.map((post, index) => (
-              <motion.article
-                key={post.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-dark-card border border-dark-border rounded-xl p-6 hover:border-primary/50 transition-all duration-300 cursor-pointer group"
-              >
-                <h3 className="text-xl font-semibold mb-3 group-hover:text-gradient transition-colors">
-                  {post.title}
-                </h3>
-                <p className="text-white/70 mb-4 leading-relaxed">
-                  {post.excerpt}
-                </p>
-                <div className="flex flex-wrap items-center gap-4 text-white/60 text-sm mb-4">
-                  <div className="flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    <span>{post.author}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>{new Date(post.publishDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{post.readTime}</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {post.tags.slice(0, 2).map(tag => (
-                    <span
-                      key={tag}
-                      className="bg-dark-lighter px-2 py-1 rounded text-xs text-white/70"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {post.tags.length > 2 && (
-                    <span className="text-xs text-white/50">
-                      +{post.tags.length - 2} more
-                    </span>
+          {filteredPosts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredPosts.map((post, index) => (
+                <motion.article
+                  key={post.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  onClick={() => handlePostClick(post)}
+                  className="bg-dark-card border border-dark-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300 cursor-pointer group"
+                >
+                  {/* Image */}
+                  {post.image_url && (
+                    <div className="aspect-video bg-dark-lighter">
+                      <img
+                        src={post.image_url}
+                        alt={post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
                   )}
-                </div>
-                <div className="flex items-center gap-2 text-primary group-hover:text-primary-light transition-colors">
-                  <span className="text-sm font-medium">Read Article</span>
-                  <ArrowRight className="h-4 w-4" />
-                </div>
-              </motion.article>
-            ))}
-          </div>
+                  
+                  <div className="p-6">
+                    <h3 className="text-xl font-semibold mb-3 group-hover:text-gradient transition-colors line-clamp-2">
+                      {post.title}
+                    </h3>
+                    
+                    {post.preview_text && (
+                      <p className="text-white/70 mb-4 leading-relaxed line-clamp-3">
+                        {post.preview_text}
+                      </p>
+                    )}
+                    
+                    <div className="flex flex-wrap items-center gap-4 text-white/60 text-sm mb-4">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{formatDate(post.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{calculateReadTime(post.content_html)}</span>
+                      </div>
+                    </div>
 
-          {/* No Results */}
-          {filteredPosts.length === 0 && (
+                    {/* AI Badge */}
+                    {post.ai_provider && (
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="bg-primary/20 text-primary px-2 py-1 rounded text-xs font-medium">
+                          AI Generated
+                        </span>
+                        <span className="text-xs text-white/50">
+                          {post.ai_provider} {post.ai_model && `• ${post.ai_model}`}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* External Link */}
+                    {post.embed_url && (
+                      <div className="flex items-center gap-1 text-secondary text-sm mb-4">
+                        <ExternalLink className="h-3 w-3" />
+                        <span>External Content</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2 text-primary group-hover:text-primary-light transition-colors">
+                      <span className="text-sm font-medium">Read Article</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+                  </div>
+                </motion.article>
+              ))}
+            </div>
+          ) : (
+            /* No Results */
             <div className="text-center py-12">
               <div className="text-white/60 mb-4">
                 <Search className="h-12 w-12 mx-auto mb-4" />
-                <p className="text-lg">No articles found matching your criteria.</p>
-                <p className="text-sm">Try adjusting your search or filters.</p>
+                <p className="text-lg">
+                  {searchTerm ? 'No articles found matching your search.' : 'No blog posts available yet.'}
+                </p>
+                {searchTerm && (
+                  <p className="text-sm">Try adjusting your search terms.</p>
+                )}
               </div>
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedTag('');
-                }}
-                className="btn btn-secondary mt-4"
-              >
-                Clear Filters
-              </button>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="btn btn-secondary mt-4"
+                >
+                  Clear Search
+                </button>
+              )}
             </div>
           )}
 
@@ -295,7 +282,6 @@ export default function BlogClient() {
       </main>
 
       <Footer />
-      <LoginModal isOpen={showLoginModal} onClose={closeModal} />
     </div>
   );
 }
