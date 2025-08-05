@@ -277,19 +277,6 @@ const MediaGeneratorClient: React.FC = () => {
     setSelectedOverlay(newOverlay.id);
   };
 
-  const updateTextOverlay = (id: string, updates: Partial<TextOverlay>) => {
-    setTextOverlays(prev => prev.map(overlay => 
-      overlay.id === id ? { ...overlay, ...updates } : overlay
-    ));
-  };
-
-  const removeTextOverlay = (id: string) => {
-    setTextOverlays(prev => prev.filter(overlay => overlay.id !== id));
-    if (selectedOverlay === id) {
-      setSelectedOverlay(null);
-    }
-  };
-
   const handleGenerateMemeConcept = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a description");

@@ -51,27 +51,9 @@ const nextConfig: NextConfig = {
       fs: false,
       net: false,
       tls: false,
+      path: false,
+      os: false,
     };
-    
-    // Optimize build performance
-    if (!dev) {
-      config.cache = {
-        type: 'filesystem',
-        buildDependencies: {
-          config: [__filename],
-        },
-      };
-    }
-
-    // Fix for Vercel deployment issues
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-        os: false,
-      };
-    }
     
     return config;
   },
