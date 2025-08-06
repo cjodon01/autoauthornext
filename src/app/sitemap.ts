@@ -12,8 +12,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .order('created_at', { ascending: false })
 
   // Base URL
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://autoauthor.ai'
-
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://autoauthor.org'
+//
   // Static pages
   const staticPages = [
     {
