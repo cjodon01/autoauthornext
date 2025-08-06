@@ -24,7 +24,7 @@ Disallow: /tools/debug
 Disallow: /api/*
 
 # Allow search engines to access sitemap
-Sitemap: https://autoauthor.ai/sitemap.xml
+Sitemap: https://autoauthor.org/sitemap.xml
 
 # Crawl delay (optional - adjust based on server capacity)
 Crawl-delay: 1
