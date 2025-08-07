@@ -64,6 +64,14 @@ const Footer: React.FC = () => {
                 </li>
                 <li>
                   <button 
+                    onClick={() => router.push('/tools')} 
+                    className="text-white/60 hover:text-white text-sm transition-colors text-left"
+                  >
+                    Tools
+                  </button>
+                </li>
+                <li>
+                  <button 
                     onClick={() => router.push('/pricing')} 
                     className="text-white/60 hover:text-white text-sm transition-colors text-left"
                   >

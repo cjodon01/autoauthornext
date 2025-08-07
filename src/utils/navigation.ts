@@ -14,9 +14,7 @@ export const useNavigationItems = (): NavItem[] => {
   
   const allNavItems: NavItem[] = [
     { label: 'Dashboard', onClick: () => router.push('/dashboard') },
-    { label: 'Tools', onClick: () => router.push('/tools') },
     { label: 'Blog', onClick: () => router.push('/blog') },
-    { label: 'Journal', onClick: () => router.push('/journal') },
     { label: 'Brands', onClick: () => router.push('/brand-management') },
     { label: 'Campaigns', onClick: () => router.push('/campaign-management') },
     { label: 'Analytics', onClick: () => router.push('/analytics') },
@@ -27,9 +25,7 @@ export const useNavigationItems = (): NavItem[] => {
   // Filter out the current page
   const filteredNavItems = allNavItems.filter(item => {
     if (pathname === '/dashboard' && item.label === 'Dashboard') return false;
-    if (pathname === '/tools' && item.label === 'Tools') return false;
     if (pathname === '/blog' && item.label === 'Blog') return false;
-    if (pathname === '/journal' && item.label === 'Journal') return false;
     if (pathname === '/brand-management' && item.label === 'Brands') return false;
     if (pathname === '/campaign-management' && item.label === 'Campaigns') return false;
     if (pathname === '/analytics' && item.label === 'Analytics') return false;
@@ -47,12 +43,8 @@ export const useCurrentPageLabel = (): string => {
   switch (pathname) {
     case '/dashboard':
       return 'Dashboard';
-    case '/tools':
-      return 'Tools';
     case '/blog':
       return 'Blog';
-    case '/journal':
-      return 'Journal';
     case '/brand-management':
       return 'Brands';
     case '/campaign-management':

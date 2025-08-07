@@ -42,15 +42,19 @@ body {
   }
   
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-light hover:shadow-glow;
+    @apply bg-gradient-to-r from-primary to-secondary text-white hover:from-primary-light hover:to-secondary-light hover:shadow-lg transform hover:scale-105;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-white hover:bg-secondary-light hover:shadow-glow-blue;
+    @apply bg-transparent border-2 border-white/30 text-white hover:border-white/50 hover:bg-white/10;
   }
   
   .btn-accent {
-    @apply bg-accent text-white hover:bg-accent-light hover:shadow-glow-coral;
+    @apply bg-accent text-white hover:bg-accent-light hover:shadow-lg;
+  }
+  
+  .btn-outline {
+    @apply bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white;
   }
   
   .text-gradient {
@@ -105,28 +109,15 @@ body {
 }
 
 @keyframes slideUp {
-  from { 
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes scaleIn {
-  from { 
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to { 
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-/* Safe area for mobile devices */
 .safe-area-top {
   padding-top: env(safe-area-inset-top);
 }
@@ -135,27 +126,25 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Sticky header */
 .sticky-header {
   position: sticky;
   top: 0;
   z-index: 50;
   backdrop-filter: blur(10px);
+  background-color: rgba(18, 18, 18, 0.8);
 }
 
-/* Floating Action Button positioning */
 .fab {
   position: fixed;
-  z-index: 50;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 40;
 }
 
-/* Touch feedback for mobile */
 .touch-feedback:active {
   transform: scale(0.95);
-  transition: transform 0.1s ease;
 }
 
-/* Line clamp utilities */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
