@@ -35,6 +35,10 @@ const DashboardClient: React.FC = () => {
   // PLACE THIS BELOW THE OTHER useState DECLARATIONS IN THE COMPONENT
   const [isFirstVisit, setIsFirstVisit] = useState(false);
 
+  // PLACE THIS BELOW OTHER useState DECLARATIONS
+  const [brandsLoading, setBrandsLoading] = useState(true);
+  const [connectionsLoading, setConnectionsLoading] = useState(true);
+
   // Place this directly below the existing useState declarations for show*Modal, connections, and brands.
   const onboardingCheckRanRef = useRef(false);
 
@@ -56,22 +60,25 @@ const DashboardClient: React.FC = () => {
         return;
       }
 
+      // REPLACE the current connections fetch call with this pattern
+      setConnectionsLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data: connRows, error: connError } = await supabase
           .from('social_connections')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id); // <-- adjust if your schema differs
 
-        if (error) {
-          console.error('Error fetching connections:', error);
+        if (connError) {
+          console.error('[connections fetch error]', connError);
           setConnections([]);
         } else {
-          setConnections(data || []);
+          setConnections(connRows ?? []);
         }
       } catch (error) {
         console.error('Error fetching connections:', error);
         setConnections([]);
       } finally {
+        setConnectionsLoading(false);
         setDataLoading(false);
       }
     };
@@ -79,22 +86,30 @@ const DashboardClient: React.FC = () => {
     const fetchBrands = async () => {
       if (!user) return;
 
+      // REPLACE the current brand fetch call with this pattern
+      setBrandsLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data: brandRows, error: brandsError } = await supabase
           .from('brands')
+          // PLACE THIS FILTER DIRECTLY AFTER .from('brands')
+          // Replace 'owner_id' with the actual column used to relate a brand to a user.
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', user.id) // <-- adjust to your real user column
+          // OPTIONAL: If we have an archived flag, also filter it out:
+          // .eq('archived', false)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching brands:', error);
+        if (brandsError) {
+          console.error('[brands fetch error]', brandsError);
           setBrands([]);
         } else {
-          setBrands(data || []);
+          setBrands(brandRows ?? []);
         }
       } catch (error) {
         console.error('Error fetching brands:', error);
         setBrands([]);
+      } finally {
+        setBrandsLoading(false);
       }
     };
 
@@ -130,6 +145,7 @@ const DashboardClient: React.FC = () => {
   const refreshBrands = async () => {
     if (!user) return;
 
+    setBrandsLoading(true);
     try {
       const { data, error } = await supabase
         .from('brands')
@@ -146,12 +162,15 @@ const DashboardClient: React.FC = () => {
     } catch (error) {
       console.error('Error fetching brands:', error);
       setBrands([]);
+    } finally {
+      setBrandsLoading(false);
     }
   };
 
   const refreshConnections = async () => {
     if (!user) return;
 
+    setConnectionsLoading(true);
     try {
       const { data, error } = await supabase
         .from('social_connections')
@@ -167,6 +186,8 @@ const DashboardClient: React.FC = () => {
     } catch (error) {
       console.error('Error fetching connections:', error);
       setConnections([]);
+    } finally {
+      setConnectionsLoading(false);
     }
   };
 
@@ -174,23 +195,19 @@ const DashboardClient: React.FC = () => {
   const hasBrands = Array.isArray(brands) && brands.length > 0;
   const hasConnections = Array.isArray(connections) && connections.length > 0;
 
-  // REPLACE THE EXISTING useEffect THAT OPENS THE ONBOARDING MODALS WITH THIS
+
+
+  // REPLACE the existing onboarding decision useEffect with this:
   useEffect(() => {
-    // Prevent repeat execution on the same dashboard render
     if (onboardingCheckRanRef.current) return;
 
-    const brandsLoaded = Array.isArray(brands);
-    const connectionsLoaded = Array.isArray(connections);
-    if (!brandsLoaded || !connectionsLoaded) return;
+    // Wait until both are loaded
+    if (brandsLoading || connectionsLoading) return;
 
     const hasBrands = Array.isArray(brands) && brands.length > 0;
     const hasConnections = Array.isArray(connections) && connections.length > 0;
 
-    // Decision matrix:
-    // - If incomplete data, always guide (regardless of first visit).
-    // - If complete (brands + connections), never show.
     if (!hasBrands) {
-      // Step 1: guide to create a brand
       setShowCreateBrandModal(true);
       setShowConnectSocialsModal(false);
       onboardingCheckRanRef.current = true;
@@ -198,7 +215,6 @@ const DashboardClient: React.FC = () => {
     }
 
     if (hasBrands && !hasConnections) {
-      // Step 2: guide to connect a platform
       setShowConnectSocialsModal(true);
       setShowCreateBrandModal(false);
       onboardingCheckRanRef.current = true;
@@ -206,9 +222,8 @@ const DashboardClient: React.FC = () => {
     }
 
     // hasBrands && hasConnections
-    // If complete, do not show anything — even on first visit.
     onboardingCheckRanRef.current = true;
-  }, [brands, connections]);
+  }, [brandsLoading, connectionsLoading, brands, connections]);
 
   const handleCreateCampaign = () => {
     const hasBrands = brands.length > 0 || justCreatedBrand;
