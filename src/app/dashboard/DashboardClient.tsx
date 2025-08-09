@@ -45,6 +45,8 @@ const DashboardClient: React.FC = () => {
   const [brandsErrorState, setBrandsErrorState] = useState<null | { code?: string; message?: string }>(null);
   const [connectionsErrorState, setConnectionsErrorState] = useState<null | { code?: string; message?: string }>(null);
 
+
+
   // Place this directly below the existing useState declarations for show*Modal, connections, and brands.
   const onboardingCheckRanRef = useRef(false);
 
