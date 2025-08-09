@@ -324,6 +324,7 @@ export type Database = {
       social_connections: {
         Row: {
           account_id: string | null
+          account_name: string | null
           created_at: string
           id: string
           long_lived_user_token: string | null
@@ -336,6 +337,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          account_name?: string | null
           created_at?: string
           id?: string
           long_lived_user_token?: string | null
@@ -348,6 +350,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          account_name?: string | null
           created_at?: string
           id?: string
           long_lived_user_token?: string | null

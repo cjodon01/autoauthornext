@@ -1,1 +1,4 @@
-supabase/ 
+oldapp/
+src_backup/
+*.md
+!README.md

@@ -91,6 +91,16 @@ const tools: Tool[] = [
     category: 'core',
     status: 'available'
   },
+  {
+    id: 'blog-generator',
+    name: 'Blog Generator',
+    description: 'Generate full blog posts with AI',
+    icon: FileText,
+    color: '#6366F1',
+    route: '/tools/blog-generator',
+    category: 'core',
+    status: 'available'
+  },
 
   // Enhancement Tools (Coming Soon)
   {
@@ -384,6 +394,17 @@ const ToolsClient: React.FC = () => {
                     </div>
                     <h4 className="font-medium text-white text-sm">Meme</h4>
                     <p className="text-xs text-white/60">Create memes</p>
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/tools/blog-generator')}
+                    className="p-4 bg-dark-lighter rounded-lg border border-dark-border hover:border-primary/50 transition-colors text-left group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center mb-2 group-hover:bg-indigo-500/30 transition-colors">
+                      <FileText className="h-4 w-4 text-indigo-500" />
+                    </div>
+                    <h4 className="font-medium text-white text-sm">Blog</h4>
+                    <p className="text-xs text-white/60">Generate blogs</p>
                   </button>
                 </div>
               </div>

@@ -118,8 +118,35 @@ Deno.serve(async (req) => {
   if (brandData.site_url) context += `Brand Website: ${brandData.site_url}\n`;
   context += `\nUser Prompt: ${prompt}\nDesired Content Type: ${contentType}\n`;
 
-  // --- 3. Token deduction skipped for now ---
-  console.log('Token deduction step skipped');
+  // --- 3. Token deduction ---
+  console.log('Starting token deduction');
+  
+  try {
+    const tokenResponse = await fetch(`${supabaseUrl}/functions/v1/deductTokens`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        task_type: 'media_generation',
+        platform_count: 1
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const tokenError = await tokenResponse.json();
+      console.error('Token deduction failed:', tokenError);
+      return sendErrorResponse('Insufficient tokens or token deduction failed', tokenError, 402);
+    }
+
+    const tokenResult = await tokenResponse.json();
+    console.log('Token deduction successful:', tokenResult);
+  } catch (tokenError) {
+    console.error('Token deduction error:', tokenError);
+    return sendErrorResponse('Token deduction failed', tokenError.message, 500);
+  }
 
   // --- 4. Call OpenAI GPT-4 for Content Idea Generation ---
   let llmPrompt = '';

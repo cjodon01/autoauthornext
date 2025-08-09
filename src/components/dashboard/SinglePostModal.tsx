@@ -183,6 +183,25 @@ const SinglePostModal: React.FC<SinglePostModalProps> = ({ isOpen, onClose }) =>
     setGenerating(true);
 
     try {
+      // First, deduct tokens for post generation
+      const deductResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/deductTokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          user_id: user?.id,
+          task_type: 'post_now_text',
+          platform_count: selectedPlatforms.length
+        }),
+      });
+
+      if (!deductResponse.ok) {
+        const error = await deductResponse.json();
+        throw new Error(error.error || 'Failed to deduct tokens');
+      }
+
       // Simplified content generation - create mock posts for now
       // In production, this would call the actual AI generation API
       const mockPosts: GeneratedPost[] = [
@@ -511,8 +530,8 @@ const SinglePostModal: React.FC<SinglePostModalProps> = ({ isOpen, onClose }) =>
             <div className="absolute -bottom-20 -left-20 w-40 h-40 rounded-full blur-[80px] bg-secondary/40"></div>
             
             <div className="relative max-h-[90vh] flex flex-col">
-              {/* Header */}
-              <div className="bg-dark-card border-b border-dark-border p-6">
+              {/* Header - Fixed */}
+              <div className="bg-dark-card border-b border-dark-border p-6 flex-shrink-0">
                 <button
                   className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
                   onClick={onClose}
@@ -533,13 +552,13 @@ const SinglePostModal: React.FC<SinglePostModalProps> = ({ isOpen, onClose }) =>
                 </div>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 min-h-0">
                 {renderStepContent()}
               </div>
 
-              {/* Footer */}
-              <div className="bg-dark-card border-t border-dark-border p-6">
+              {/* Footer - Fixed */}
+              <div className="bg-dark-card border-t border-dark-border p-6 flex-shrink-0">
                 <div className="flex justify-between">
                   {currentStep !== 'input' && (
                     <button

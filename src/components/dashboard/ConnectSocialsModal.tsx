@@ -273,7 +273,8 @@ const ConnectSocialsModal: React.FC<ConnectSocialsModalProps> = ({
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           >
             <div className="relative max-h-[90vh] flex flex-col">
-              <div className="bg-dark-card border-b border-dark-border p-6 relative">
+              {/* Header - Fixed */}
+              <div className="bg-dark-card border-b border-dark-border p-6 relative flex-shrink-0">
                 <button
                   className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
                   onClick={onClose}
@@ -291,7 +292,8 @@ const ConnectSocialsModal: React.FC<ConnectSocialsModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 min-h-0">
                 <div className="space-y-4">
                   {platforms.map((platform) => {
                     const IconComponent = platform.icon;
@@ -378,7 +380,8 @@ const ConnectSocialsModal: React.FC<ConnectSocialsModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-dark-card border-t border-dark-border p-6 flex justify-end">
+              {/* Footer - Fixed */}
+              <div className="bg-dark-card border-t border-dark-border p-6 flex justify-end flex-shrink-0">
                 <button onClick={onClose} className="btn btn-secondary">
                   Close
                 </button>

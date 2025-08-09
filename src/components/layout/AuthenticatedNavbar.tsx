@@ -82,7 +82,14 @@ const AuthenticatedNavbar: React.FC<AuthenticatedNavbarProps> = ({
               className="h-6 w-6"
             />
             <motion.button 
-              onClick={() => router.push('/')}
+              onClick={() => {
+                const pathname = window.location.pathname;
+                if (pathname === '/dashboard') {
+                  router.push('/');
+                } else {
+                  router.push('/dashboard');
+                }
+              }}
               className="font-display font-semibold text-gradient hover:opacity-90 transition-opacity touch-feedback"
               whileTap={{ scale: 0.95 }}
             >

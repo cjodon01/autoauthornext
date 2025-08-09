@@ -16,6 +16,7 @@ const TASK_COSTS = {
   'journey_campaign_post': 20,
   'media_generation': 50,
   'brand_analysis': 30,
+  'brand_generation': 25,
   'content_optimization': 25
 };
 

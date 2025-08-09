@@ -14,11 +14,11 @@ export const useNavigationItems = (): NavItem[] => {
   
   const allNavItems: NavItem[] = [
     { label: 'Dashboard', onClick: () => router.push('/dashboard') },
-    { label: 'Blog', onClick: () => router.push('/blog') },
-    { label: 'Brands', onClick: () => router.push('/brand-management') },
     { label: 'Campaigns', onClick: () => router.push('/campaign-management') },
-    { label: 'Analytics', onClick: () => router.push('/analytics') },
     { label: 'Scheduled Posts', onClick: () => router.push('/pending-posts') },
+    { label: 'Analytics', onClick: () => router.push('/analytics') },
+    { label: 'Brands', onClick: () => router.push('/brand-management') },
+    { label: 'Blog', onClick: () => router.push('/blog') },
     { label: 'Profile', onClick: () => router.push('/profile') },
   ];
 

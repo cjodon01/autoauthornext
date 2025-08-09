@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth/provider';
 import { createClient } from '../../lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import CreateBotModal from '../dashboard/CreateBotModal';
 
 interface OnboardingWizardProps {
   isOpen: boolean;
@@ -85,6 +86,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [socialPages, setSocialPages] = useState<SocialPage[]>([]);
   const [isFbSdkLoaded, setIsFbSdkLoaded] = useState(false);
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
+  const [showCreateCampaignModal, setShowCreateCampaignModal] = useState(false);
 
   const [brandData, setBrandData] = useState<BrandData>({
     name: '',
@@ -588,6 +590,25 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
     setLoading(true);
     try {
+      // First, deduct tokens for AI brand generation
+      const deductResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/deductTokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          user_id: user?.id,
+          task_type: 'brand_generation',
+          platform_count: 1
+        }),
+      });
+
+      if (!deductResponse.ok) {
+        const error = await deductResponse.json();
+        throw new Error(error.error || 'Failed to deduct tokens');
+      }
+
       // Call the AI brand building function
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ai-brand-build`, {
         method: 'POST',
@@ -690,6 +711,17 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   onChange={(e) => setBrandData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
                   placeholder="Enter your brand name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Website URL (Optional)</label>
+                <input
+                  type="url"
+                  value={brandData.url || ''}
+                  onChange={(e) => setBrandData(prev => ({ ...prev, url: e.target.value }))}
+                  className="w-full px-4 py-3 bg-dark-lighter border border-dark-border rounded-lg focus:border-primary focus:outline-none"
+                  placeholder="https://yourwebsite.com"
                 />
               </div>
 
@@ -898,175 +930,29 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       case 3:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">
-                Campaign Name *
-              </label>
-              <input
-                type="text"
-                value={campaignData.name}
-                onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full bg-dark-lighter border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="e.g., Weekly Content Campaign"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-3">
-                Campaign Goal
-              </label>
-              <div className="grid grid-cols-1 gap-3">
-                {campaignGoals.map(goal => (
-                  <button
-                    key={goal.value}
-                    type="button"
-                    onClick={() => setCampaignData(prev => ({ ...prev, goal: goal.value }))}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      campaignData.goal === goal.value
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-dark-border bg-dark-lighter text-white/70 hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="font-medium">{goal.label}</div>
-                    <div className="text-xs opacity-70">{goal.description}</div>
-                  </button>
-                ))}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-6">
+                <Zap className="h-8 w-8 text-primary" />
               </div>
+              <h3 className="text-xl font-semibold text-white mb-4">
+                Create Your First Campaign
+              </h3>
+              <p className="text-white/60 mb-8 max-w-md mx-auto">
+                Set up automated content creation with our powerful campaign builder. Choose between general campaigns for ongoing content or journey campaigns for storytelling.
+              </p>
+              
+              <button
+                onClick={() => setShowCreateCampaignModal(true)}
+                className="btn btn-primary inline-flex items-center gap-2 px-8 py-3 text-lg"
+              >
+                <Zap className="h-5 w-5" />
+                Create Campaign
+              </button>
+              
+              <p className="text-white/40 text-sm mt-4">
+                You can also create campaigns later from the dashboard
+              </p>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-3">
-                Posting Frequency
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {frequencies.map(freq => (
-                  <button
-                    key={freq.value}
-                    type="button"
-                    onClick={() => setCampaignData(prev => ({ ...prev, frequency: freq.value }))}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      campaignData.frequency === freq.value
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-dark-border bg-dark-lighter text-white/70 hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="font-medium">{freq.label}</div>
-                    <div className="text-xs opacity-70">{freq.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-3">
-                Select Platforms & Pages
-              </label>
-              <div className="space-y-3">
-                {socialConnections.filter(conn => conn.connected).map(connection => {
-                  const Icon = getProviderIcon(connection.provider);
-                  const color = getProviderColor(connection.provider);
-                  const platformPages = getPagesForPlatform(connection.provider);
-                  const hasPages = platformPages.length > 0;
-                  const isSelected = campaignData.platforms.includes(connection.provider);
-                  
-                  return (
-                    <div key={connection.provider} className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => handlePlatformToggle(connection.provider)}
-                        className={`w-full p-4 rounded-lg border transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-dark-border bg-dark-lighter text-white/70 hover:border-primary/50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-8 h-8 rounded-lg flex items-center justify-center"
-                              style={{ backgroundColor: color + '20' }}
-                            >
-                              <Icon className="h-4 w-4" style={{ color }} />
-                            </div>
-                            <div className="text-left">
-                              <div className="font-medium">
-                                {connection.provider.charAt(0).toUpperCase() + connection.provider.slice(1)}
-                              </div>
-                              <div className="text-xs opacity-70">
-                                {hasPages ? `${platformPages.length} page(s) available` : 'No pages available'}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <CheckCircle className="h-4 w-4 text-primary" />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Page Selection for Selected Platforms */}
-                      {isSelected && hasPages && (
-                        <div className="ml-8 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-white/60">Select pages to post to:</span>
-                            <button
-                              type="button"
-                              onClick={() => setExpandedPlatform(expandedPlatform === connection.provider ? null : connection.provider)}
-                              className="text-primary hover:text-primary-light text-sm"
-                            >
-                              {expandedPlatform === connection.provider ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                          
-                          <AnimatePresence>
-                            {expandedPlatform === connection.provider && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="space-y-2"
-                              >
-                                {platformPages.map(page => {
-                                  const isPageSelected = (campaignData.selectedPages[connection.provider] || []).includes(page.id);
-                                  return (
-                                    <button
-                                      key={page.id}
-                                      type="button"
-                                      onClick={() => handlePageSelection(connection.provider, page.id)}
-                                      className={`w-full p-3 rounded-lg border text-left transition-all ${
-                                        isPageSelected
-                                          ? 'border-primary bg-primary/10 text-primary'
-                                          : 'border-dark-border bg-dark-lighter text-white/70 hover:border-primary/50'
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <span className="font-medium">{page.page_name}</span>
-                                        {isPageSelected && (
-                                          <CheckCircle className="h-4 w-4 text-primary" />
-                                        )}
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {campaignData.platforms.length === 0 && (
-              <div className="text-center text-white/60 text-sm">
-                <p>Connect social accounts first to create campaigns</p>
-              </div>
-            )}
           </div>
         );
 
@@ -1160,8 +1046,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         <div className="absolute -bottom-20 -left-20 w-40 h-40 rounded-full blur-[80px] bg-secondary/40"></div>
         
         <div className="relative max-h-[90vh] flex flex-col">
-          {/* Header */}
-          <div className="bg-dark-card border-b border-dark-border p-6">
+          {/* Header - Fixed */}
+          <div className="bg-dark-card border-b border-dark-border p-6 flex-shrink-0">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <img
@@ -1231,8 +1117,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-white mb-2">
                 {steps[currentStep - 1].title}
@@ -1245,8 +1131,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             {renderStepContent()}
           </div>
 
-          {/* Footer */}
-          <div className="bg-dark-card border-t border-dark-border p-6">
+          {/* Footer - Fixed */}
+          <div className="bg-dark-card border-t border-dark-border p-6 flex-shrink-0">
             <div className="flex justify-between">
               <button
                 onClick={handlePrevious}
@@ -1261,8 +1147,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <button
                   onClick={handleNext}
                   disabled={
-                    (currentStep === 1 && !brandData.name) ||
-                    (currentStep === 3 && (!campaignData.name || campaignData.platforms.length === 0))
+                    (currentStep === 1 && !brandData.name)
                   }
                   className="btn btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1283,6 +1168,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           </div>
         </div>
       </motion.div>
+      
+      {/* Create Campaign Modal */}
+      <CreateBotModal
+        isOpen={showCreateCampaignModal}
+        onClose={() => setShowCreateCampaignModal(false)}
+      />
     </div>
   );
 };

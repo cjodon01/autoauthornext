@@ -230,6 +230,7 @@ const DashboardClient: React.FC = () => {
       {/* Navigation */}
       <AuthenticatedNavbar
         onLogout={handleLogout}
+        onTokenClick={() => setShowTokenModal(true)}
         userEmail={user?.email}
       />
 
@@ -491,25 +492,28 @@ const DashboardClient: React.FC = () => {
         </motion.div>
       </main>
 
-      {/* Floating Action Button */}
-      <motion.button
-        onClick={handleCreateCampaign}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-glow hover:bg-primary-light transition-colors cursor-pointer z-50 fab safe-area-bottom"
-        whileHover={{ scale: 1.1, boxShadow: "0 0 20px rgba(138, 43, 226, 0.7)" }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Plus className="h-6 w-6 text-white" />
-      </motion.button>
+      {/* Floating Action Buttons Container */}
+      <div className="fixed bottom-8 right-8 flex flex-col gap-4 z-50">
+        {/* Secondary Floating Action Button for Single Post */}
+        <motion.button
+          onClick={() => setShowSinglePostModal(true)}
+          className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center shadow-glow-blue hover:bg-secondary-light transition-colors cursor-pointer fab safe-area-bottom"
+          whileHover={{ scale: 1.1, boxShadow: "0 0 20px rgba(0, 191, 255, 0.7)" }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <Send className="h-5 w-5 text-white" />
+        </motion.button>
 
-      {/* Secondary Floating Action Button for Single Post */}
-      <motion.button
-        onClick={() => setShowSinglePostModal(true)}
-        className="fixed bottom-8 right-24 w-12 h-12 bg-secondary rounded-full flex items-center justify-center shadow-glow-blue hover:bg-secondary-light transition-colors cursor-pointer z-50 fab safe-area-bottom"
-        whileHover={{ scale: 1.1, boxShadow: "0 0 20px rgba(0, 191, 255, 0.7)" }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Send className="h-5 w-5 text-white" />
-      </motion.button>
+        {/* Primary Floating Action Button for Campaign */}
+        <motion.button
+          onClick={handleCreateCampaign}
+          className="w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-glow hover:bg-primary-light transition-colors cursor-pointer fab safe-area-bottom"
+          whileHover={{ scale: 1.1, boxShadow: "0 0 20px rgba(138, 43, 226, 0.7)" }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <Plus className="h-6 w-6 text-white" />
+        </motion.button>
+      </div>
 
       <CreateBotModal
         isOpen={isCreateModalOpen}

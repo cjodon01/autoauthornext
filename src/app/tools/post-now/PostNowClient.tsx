@@ -175,6 +175,30 @@ const PostNowClient: React.FC = () => {
     setGenerating(true);
 
     try {
+      // First, deduct tokens for post generation
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const deductResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/deductTokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          user_id: user?.id,
+          task_type: 'post_now_text',
+          platform_count: selectedPlatforms.length
+        }),
+      });
+
+      if (!deductResponse.ok) {
+        const error = await deductResponse.json();
+        throw new Error(error.error || 'Failed to deduct tokens');
+      }
+
       // Simplified content generation - create mock posts for now
       // In production, this would call the actual AI generation API
       const mockPosts: GeneratedPost[] = [
@@ -486,7 +510,8 @@ const PostNowClient: React.FC = () => {
       
       {/* Navigation */}
       <AuthenticatedNavbar
-        onLogout={() => {}}
+        onLogout={() => router.push('/')}
+        onTokenClick={() => router.push('/pricing')}
         userEmail={user?.email}
       />
 

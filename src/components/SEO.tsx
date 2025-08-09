@@ -43,8 +43,8 @@ export default function SEO({
   structuredData
 }: SEOProps) {
   const fullTitle = title.includes('AutoAuthor') ? title : `${title} | AutoAuthor`;
-  const fullUrl = url.startsWith('http') ? url : `https://autoauthor.ai${url}`;
-  const fullImage = image.startsWith('http') ? image : `https://autoauthor.ai${image}`;
+  const fullUrl = url.startsWith('http') ? url : `https://autoauthor.org${url}`;
+  const fullImage = image.startsWith('http') ? image : `https://autoauthor.orgi${image}`;
 
   return (
     <Head>

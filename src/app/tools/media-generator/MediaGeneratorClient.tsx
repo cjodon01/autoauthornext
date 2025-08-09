@@ -669,6 +669,7 @@ const MediaGeneratorClient: React.FC = () => {
       {/* Navigation */}
       <AuthenticatedNavbar
         onLogout={() => router.push('/')}
+        onTokenClick={() => router.push('/pricing')}
         userEmail={user?.email}
       />
 

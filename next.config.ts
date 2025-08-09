@@ -14,10 +14,14 @@ const nextConfig: NextConfig = {
   // Build optimization
   eslint: {
     ignoreDuringBuilds: false,
+    dirs: ['src'], // Only lint src directory, exclude oldapp
   },
   typescript: {
     ignoreBuildErrors: false,
   },
+  
+  // Exclude oldapp directory from builds
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   
   // Image optimization
   images: {
@@ -45,7 +49,7 @@ const nextConfig: NextConfig = {
 
   // Webpack optimization
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Exclude edge functions from Next.js build
+    // Exclude edge functions and oldapp from Next.js build
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
@@ -54,6 +58,12 @@ const nextConfig: NextConfig = {
       path: false,
       os: false,
     };
+    
+    // Exclude oldapp directory
+    config.module.rules.push({
+      test: /\.(ts|tsx|js|jsx)$/,
+      exclude: /oldapp/,
+    });
     
     return config;
   },

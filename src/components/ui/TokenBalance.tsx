@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { Bolt } from 'lucide-react';
 import { useTokenBalance } from '../../hooks/useTokenBalance';
