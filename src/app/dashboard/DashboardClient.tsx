@@ -13,6 +13,9 @@ import CreateBrandModal from '../../components/dashboard/CreateBrandModal';
 import { Loader2, Plus, BarChart3, BookOpen, Send, ClipboardList, Building2, Settings, Edit, CheckCircle2, Facebook, Twitter, MessageSquare, Linkedin, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
+// PLACE THIS DIRECTLY BELOW THE LAST IMPORT LINE
+const ONBOARDING_KEY_FOR = (uid?: string) => (uid ? `aa:onboardingSeen:${uid}` : null);
+
 const DashboardClient: React.FC = () => {
   const { user, session, loading, signOut } = useAuth();
   const router = useRouter();
@@ -28,6 +31,9 @@ const DashboardClient: React.FC = () => {
   const [brands, setBrands] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [justCreatedBrand, setJustCreatedBrand] = useState(false);
+
+  // PLACE THIS BELOW THE OTHER useState DECLARATIONS IN THE COMPONENT
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   // Place this directly below the existing useState declarations for show*Modal, connections, and brands.
   const onboardingCheckRanRef = useRef(false);
@@ -100,6 +106,27 @@ const DashboardClient: React.FC = () => {
     }
   }, [user, session, supabase]);
 
+  // PLACE THIS JUST ABOVE THE existing useEffect that decides which modal to open
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Replace `userId` with however this file currently obtains the authed user id.
+    const userId = session?.user?.id; // ← keep this line aligned with the file's actual session access pattern
+    const key = ONBOARDING_KEY_FOR(userId);
+
+    if (!key) return;
+
+    const seen = window.localStorage.getItem(key) === '1';
+
+    // If we have not recorded a visit yet, mark this as the first dashboard visit.
+    if (!seen) {
+      setIsFirstVisit(true);
+      try {
+        window.localStorage.setItem(key, '1');
+      } catch {}
+    }
+  }, [session?.user?.id]);
+
   const refreshBrands = async () => {
     if (!user) return;
 
@@ -147,25 +174,21 @@ const DashboardClient: React.FC = () => {
   const hasBrands = Array.isArray(brands) && brands.length > 0;
   const hasConnections = Array.isArray(connections) && connections.length > 0;
 
-  // Auto-onboarding: run once after we know brand/connection state
+  // REPLACE THE EXISTING useEffect THAT OPENS THE ONBOARDING MODALS WITH THIS
   useEffect(() => {
     // Prevent repeat execution on the same dashboard render
     if (onboardingCheckRanRef.current) return;
 
-    // We need both queries to have resolved once; if you're using an explicit loading flag, gate on it here as well.
-    // If there are dedicated `isLoadingBrands` / `isLoadingConnections` booleans, include them in the guard.
-    // Otherwise, it's okay to proceed with current array values.
     const brandsLoaded = Array.isArray(brands);
     const connectionsLoaded = Array.isArray(connections);
     if (!brandsLoaded || !connectionsLoaded) return;
 
-    // Decide which (if any) onboarding modal to open
-    if (hasBrands && hasConnections) {
-      // Fully onboarded: open nothing
-      onboardingCheckRanRef.current = true;
-      return;
-    }
+    const hasBrands = Array.isArray(brands) && brands.length > 0;
+    const hasConnections = Array.isArray(connections) && connections.length > 0;
 
+    // Decision matrix:
+    // - If incomplete data, always guide (regardless of first visit).
+    // - If complete (brands + connections), never show.
     if (!hasBrands) {
       // Step 1: guide to create a brand
       setShowCreateBrandModal(true);
@@ -181,7 +204,11 @@ const DashboardClient: React.FC = () => {
       onboardingCheckRanRef.current = true;
       return;
     }
-  }, [brands, connections, hasBrands, hasConnections]);
+
+    // hasBrands && hasConnections
+    // If complete, do not show anything — even on first visit.
+    onboardingCheckRanRef.current = true;
+  }, [brands, connections]);
 
   const handleCreateCampaign = () => {
     const hasBrands = brands.length > 0 || justCreatedBrand;
