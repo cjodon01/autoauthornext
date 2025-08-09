@@ -39,8 +39,11 @@ const DashboardClient: React.FC = () => {
   const [brandsLoading, setBrandsLoading] = useState(true);
   const [connectionsLoading, setConnectionsLoading] = useState(true);
 
-  // PLACE BELOW OTHER useState DECLARATIONS
-  const DEBUG_ONBOARD = true;
+
+
+  // PLACE UNDER other useState declarations
+  const [brandsErrorState, setBrandsErrorState] = useState<null | { code?: string; message?: string }>(null);
+  const [connectionsErrorState, setConnectionsErrorState] = useState<null | { code?: string; message?: string }>(null);
 
   // Place this directly below the existing useState declarations for show*Modal, connections, and brands.
   const onboardingCheckRanRef = useRef(false);
@@ -72,8 +75,7 @@ const DashboardClient: React.FC = () => {
       // PLACE THIS AS THE VERY FIRST LINE INSIDE EACH FETCH FUNCTION
       if (!user?.id) return; // do not fetch until user is ready
 
-      // PLACE AT THE START OF fetchConnections()
-      if (DEBUG_ONBOARD) console.log('[fetchConnections] start', { ts: Date.now(), userId: user?.id });
+
 
       // REPLACE the current connections fetch call with this pattern
       setConnectionsLoading(true);
@@ -86,11 +88,12 @@ const DashboardClient: React.FC = () => {
 
         if (connError) {
           console.error('[connections fetch error]', connError);
+          setConnectionsErrorState({ code: connError.code, message: connError.message });
           setConnections([]);
         } else {
-          // AFTER connections query resolves, before setting state
-          if (DEBUG_ONBOARD) console.log('[fetchConnections] done', { ts: Date.now(), rows: connRows?.length, error: !!connError });
 
+
+          setConnectionsErrorState(null);
           setConnections(connRows ?? []);
         }
       } catch (error) {
@@ -108,8 +111,7 @@ const DashboardClient: React.FC = () => {
       // PLACE THIS AS THE VERY FIRST LINE INSIDE EACH FETCH FUNCTION
       if (!user?.id) return; // do not fetch until user is ready
 
-      // PLACE AT THE START OF fetchBrands()
-      if (DEBUG_ONBOARD) console.log('[fetchBrands] start', { ts: Date.now(), userId: user?.id });
+
 
       // REPLACE the current brand fetch call with this pattern
       setBrandsLoading(true);
@@ -127,11 +129,12 @@ const DashboardClient: React.FC = () => {
 
         if (brandsError) {
           console.error('[brands fetch error]', brandsError);
+          setBrandsErrorState({ code: brandsError.code, message: brandsError.message });
           setBrands([]);
         } else {
-          // AFTER brands query resolves, before setting state
-          if (DEBUG_ONBOARD) console.log('[fetchBrands] done', { ts: Date.now(), rows: brandRows?.length, error: !!brandsError });
 
+
+          setBrandsErrorState(null);
           setBrands(brandRows ?? []);
         }
       } catch (error) {
@@ -232,22 +235,16 @@ const DashboardClient: React.FC = () => {
   useEffect(() => {
     if (onboardingCheckRanRef.current) return;
 
-    // PLACE AS THE FIRST LINES INSIDE THE DECISION EFFECT
-    if (DEBUG_ONBOARD) {
-      console.log('[decision] enter', {
-        ts: Date.now(),
-        userId: user?.id,
-        brandsLoading,
-        connectionsLoading,
-        brandsLen: brands?.length ?? -1,
-        connsLen: connections?.length ?? -1,
-        onboardingCheckRan: onboardingCheckRanRef.current,
-      });
-    }
+
 
     // REPLACE the beginning of the decision effect with this guard
     if (!user?.id) return; // wait for a real user id
     if (brandsLoading || connectionsLoading) return;
+    if (brandsErrorState || connectionsErrorState) {
+      // PLACE THIS BELOW THE IF-BLOCK
+      // TODO: optional: toast.error('Couldn't load account data — please refresh');
+      return;
+    }
 
     const hasBrands = Array.isArray(brands) && brands.length > 0;
     const hasConnections = Array.isArray(connections) && connections.length > 0;
@@ -273,16 +270,26 @@ const DashboardClient: React.FC = () => {
     // hasBrands && hasConnections
 
     onboardingCheckRanRef.current = true;
-  }, [user?.id, brandsLoading, connectionsLoading, brands, connections]);
+  }, [user?.id, brandsLoading, connectionsLoading, brandsErrorState, connectionsErrorState, brands, connections]);
 
   const handleCreateCampaign = () => {
-    const hasBrands = brands.length > 0 || justCreatedBrand;
-  
+    // PLACE ABOVE the fallback opener
+    const ready = !!user?.id && !brandsLoading && !brandsErrorState;
+    const hasBrands = ready && Array.isArray(brands) && brands.length > 0;
+
+    // REPLACE the condition to open the modal with:
     if (!hasBrands) {
-      toast.error("No brands found", {
-        description: "Please create a brand first before creating campaigns."
-      });
-      setShowCreateBrandModal(true);
+      // safe to open only when data is ready and accurate
+      if (brandsErrorState) {
+        toast.error("Couldn't load account data", {
+          description: "Please refresh the page and try again."
+        });
+      } else {
+        toast.error("No brands found", {
+          description: "Please create a brand first before creating campaigns."
+        });
+        setShowCreateBrandModal(true);
+      }
     } else {
       router.push('/campaign-management');
       setJustCreatedBrand(false);
