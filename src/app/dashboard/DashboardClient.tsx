@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../lib/auth/provider';
@@ -28,6 +28,9 @@ const DashboardClient: React.FC = () => {
   const [brands, setBrands] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [justCreatedBrand, setJustCreatedBrand] = useState(false);
+
+  // Place this directly below the existing useState declarations for show*Modal, connections, and brands.
+  const onboardingCheckRanRef = useRef(false);
 
   // Platform configurations
   const platforms = [
@@ -139,6 +142,46 @@ const DashboardClient: React.FC = () => {
       setConnections([]);
     }
   };
+
+  // Place this below where connections/brands are set but above render/return.
+  const hasBrands = Array.isArray(brands) && brands.length > 0;
+  const hasConnections = Array.isArray(connections) && connections.length > 0;
+
+  // Auto-onboarding: run once after we know brand/connection state
+  useEffect(() => {
+    // Prevent repeat execution on the same dashboard render
+    if (onboardingCheckRanRef.current) return;
+
+    // We need both queries to have resolved once; if you're using an explicit loading flag, gate on it here as well.
+    // If there are dedicated `isLoadingBrands` / `isLoadingConnections` booleans, include them in the guard.
+    // Otherwise, it's okay to proceed with current array values.
+    const brandsLoaded = Array.isArray(brands);
+    const connectionsLoaded = Array.isArray(connections);
+    if (!brandsLoaded || !connectionsLoaded) return;
+
+    // Decide which (if any) onboarding modal to open
+    if (hasBrands && hasConnections) {
+      // Fully onboarded: open nothing
+      onboardingCheckRanRef.current = true;
+      return;
+    }
+
+    if (!hasBrands) {
+      // Step 1: guide to create a brand
+      setShowCreateBrandModal(true);
+      setShowConnectSocialsModal(false);
+      onboardingCheckRanRef.current = true;
+      return;
+    }
+
+    if (hasBrands && !hasConnections) {
+      // Step 2: guide to connect a platform
+      setShowConnectSocialsModal(true);
+      setShowCreateBrandModal(false);
+      onboardingCheckRanRef.current = true;
+      return;
+    }
+  }, [brands, connections, hasBrands, hasConnections]);
 
   const handleCreateCampaign = () => {
     const hasBrands = brands.length > 0 || justCreatedBrand;
