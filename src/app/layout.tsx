@@ -29,6 +29,9 @@ export const metadata: Metadata = {
   authors: [{ name: "AutoAuthor Team" }],
   creator: "AutoAuthor",
   metadataBase: new URL('https://autoauthor.cc'),
+  icons: {
+    icon: '/images/favicon.ico',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
