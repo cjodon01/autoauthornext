@@ -62,6 +62,7 @@ const DashboardClient: React.FC = () => {
 
       // REPLACE the current connections fetch call with this pattern
       setConnectionsLoading(true);
+
       try {
         const { data: connRows, error: connError } = await supabase
           .from('social_connections')
@@ -72,6 +73,7 @@ const DashboardClient: React.FC = () => {
           console.error('[connections fetch error]', connError);
           setConnections([]);
         } else {
+
           setConnections(connRows ?? []);
         }
       } catch (error) {
@@ -88,6 +90,7 @@ const DashboardClient: React.FC = () => {
 
       // REPLACE the current brand fetch call with this pattern
       setBrandsLoading(true);
+
       try {
         const { data: brandRows, error: brandsError } = await supabase
           .from('brands')
@@ -103,6 +106,7 @@ const DashboardClient: React.FC = () => {
           console.error('[brands fetch error]', brandsError);
           setBrands([]);
         } else {
+
           setBrands(brandRows ?? []);
         }
       } catch (error) {
@@ -197,6 +201,8 @@ const DashboardClient: React.FC = () => {
 
 
 
+
+
   // REPLACE the existing onboarding decision useEffect with this:
   useEffect(() => {
     if (onboardingCheckRanRef.current) return;
@@ -207,7 +213,10 @@ const DashboardClient: React.FC = () => {
     const hasBrands = Array.isArray(brands) && brands.length > 0;
     const hasConnections = Array.isArray(connections) && connections.length > 0;
 
+
+
     if (!hasBrands) {
+
       setShowCreateBrandModal(true);
       setShowConnectSocialsModal(false);
       onboardingCheckRanRef.current = true;
@@ -215,6 +224,7 @@ const DashboardClient: React.FC = () => {
     }
 
     if (hasBrands && !hasConnections) {
+
       setShowConnectSocialsModal(true);
       setShowCreateBrandModal(false);
       onboardingCheckRanRef.current = true;
@@ -222,6 +232,7 @@ const DashboardClient: React.FC = () => {
     }
 
     // hasBrands && hasConnections
+
     onboardingCheckRanRef.current = true;
   }, [brandsLoading, connectionsLoading, brands, connections]);
 
