@@ -39,8 +39,17 @@ const DashboardClient: React.FC = () => {
   const [brandsLoading, setBrandsLoading] = useState(true);
   const [connectionsLoading, setConnectionsLoading] = useState(true);
 
+  // PLACE BELOW OTHER useState DECLARATIONS
+  const DEBUG_ONBOARD = true;
+
   // Place this directly below the existing useState declarations for show*Modal, connections, and brands.
   const onboardingCheckRanRef = useRef(false);
+
+  // PLACE THIS EFFECT NEAR OTHER REFS
+  useEffect(() => {
+    // If user context changes, allow a new decision later
+    onboardingCheckRanRef.current = false;
+  }, [user?.id]);
 
   // Platform configurations
   const platforms = [
@@ -60,6 +69,12 @@ const DashboardClient: React.FC = () => {
         return;
       }
 
+      // PLACE THIS AS THE VERY FIRST LINE INSIDE EACH FETCH FUNCTION
+      if (!user?.id) return; // do not fetch until user is ready
+
+      // PLACE AT THE START OF fetchConnections()
+      if (DEBUG_ONBOARD) console.log('[fetchConnections] start', { ts: Date.now(), userId: user?.id });
+
       // REPLACE the current connections fetch call with this pattern
       setConnectionsLoading(true);
 
@@ -73,6 +88,8 @@ const DashboardClient: React.FC = () => {
           console.error('[connections fetch error]', connError);
           setConnections([]);
         } else {
+          // AFTER connections query resolves, before setting state
+          if (DEBUG_ONBOARD) console.log('[fetchConnections] done', { ts: Date.now(), rows: connRows?.length, error: !!connError });
 
           setConnections(connRows ?? []);
         }
@@ -87,6 +104,12 @@ const DashboardClient: React.FC = () => {
 
     const fetchBrands = async () => {
       if (!user) return;
+
+      // PLACE THIS AS THE VERY FIRST LINE INSIDE EACH FETCH FUNCTION
+      if (!user?.id) return; // do not fetch until user is ready
+
+      // PLACE AT THE START OF fetchBrands()
+      if (DEBUG_ONBOARD) console.log('[fetchBrands] start', { ts: Date.now(), userId: user?.id });
 
       // REPLACE the current brand fetch call with this pattern
       setBrandsLoading(true);
@@ -106,6 +129,8 @@ const DashboardClient: React.FC = () => {
           console.error('[brands fetch error]', brandsError);
           setBrands([]);
         } else {
+          // AFTER brands query resolves, before setting state
+          if (DEBUG_ONBOARD) console.log('[fetchBrands] done', { ts: Date.now(), rows: brandRows?.length, error: !!brandsError });
 
           setBrands(brandRows ?? []);
         }
@@ -117,13 +142,13 @@ const DashboardClient: React.FC = () => {
       }
     };
 
-    if (user) {
+    if (user?.id) {
       fetchConnections();
       fetchBrands();
     } else if (session !== undefined && !user) {
       setDataLoading(false);
     }
-  }, [user, session, supabase]);
+  }, [user?.id, session, supabase]);
 
   // PLACE THIS JUST ABOVE THE existing useEffect that decides which modal to open
   useEffect(() => {
@@ -207,7 +232,21 @@ const DashboardClient: React.FC = () => {
   useEffect(() => {
     if (onboardingCheckRanRef.current) return;
 
-    // Wait until both are loaded
+    // PLACE AS THE FIRST LINES INSIDE THE DECISION EFFECT
+    if (DEBUG_ONBOARD) {
+      console.log('[decision] enter', {
+        ts: Date.now(),
+        userId: user?.id,
+        brandsLoading,
+        connectionsLoading,
+        brandsLen: brands?.length ?? -1,
+        connsLen: connections?.length ?? -1,
+        onboardingCheckRan: onboardingCheckRanRef.current,
+      });
+    }
+
+    // REPLACE the beginning of the decision effect with this guard
+    if (!user?.id) return; // wait for a real user id
     if (brandsLoading || connectionsLoading) return;
 
     const hasBrands = Array.isArray(brands) && brands.length > 0;
@@ -234,7 +273,7 @@ const DashboardClient: React.FC = () => {
     // hasBrands && hasConnections
 
     onboardingCheckRanRef.current = true;
-  }, [brandsLoading, connectionsLoading, brands, connections]);
+  }, [user?.id, brandsLoading, connectionsLoading, brands, connections]);
 
   const handleCreateCampaign = () => {
     const hasBrands = brands.length > 0 || justCreatedBrand;
